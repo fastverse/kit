@@ -2,3 +2,5 @@
 ^\.appveyor\.yml$
 ^README\.md$
 LICENSE
+^.*\.Rproj$
+^\.Rproj\.user$
