@@ -4,7 +4,7 @@
 [![CRAN](https://badges.cranchecks.info/flavor/release/kit.svg)](https://cran.r-project.org/web/checks/check_results_kit.html)
 [![License: GPL
 v3](https://img.shields.io/github/license/fastverse/kit)](https://www.gnu.org/licenses/gpl-3.0)
-[![R-CMD-check](https://github.com/fastverse/kit/workflows/R-CMD-check/badge.svg)](https://github.com/fastverse/kit/actions)
+[![R-CMD-check.yaml](https://github.com/fastverse/kit/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/fastverse/kit/actions/workflows/R-CMD-check.yaml)
 [![Coverage
 Status](https://codecov.io/gh/2005m/kit/graph/badge.svg)](https://codecov.io/github/2005m/kit?branch=master)
 [![downloads](https://cranlogs.r-pkg.org/badges/kit)](https://www.r-pkg.org/pkg/kit)
