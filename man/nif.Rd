@@ -5,7 +5,7 @@
 \code{nif} is a fast implementation of SQL \code{CASE WHEN} statement for R. Conceptually, \code{nif} is a nested version of \code{\link{iif}} (with smarter implementation than manual nesting). It is not the same but it is comparable to \code{dplyr::case_when} and \code{data.table::fcase}.
 }
 \usage{
-  nif(..., default=NULL)
+nif(..., default=NULL)
 }
 \arguments{
 \item{...}{ A sequence consisting of logical condition (\code{when})-resulting value (\code{value}) \emph{pairs} in the following order \code{when1, value1, when2, value2, ..., whenN, valueN}. Logical conditions \code{when1, when2, ..., whenN} must all have the same length, type and attributes. Each \code{value} may either share length with \code{when} or be length 1. Please see Examples section for further details.}

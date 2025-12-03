@@ -7,9 +7,9 @@
 Similar to base R functions \code{duplicated} and \code{unique}, \code{fduplicated} and \code{funique} are slightly faster for vectors and much faster for \code{data.frame}. Function \code{uniqLen} is equivalent to base R \code{length(unique)} or \code{data.table::uniqueN}.
 }
 \usage{
-  fduplicated(x, fromLast = FALSE)
-  funique(x, fromLast = FALSE)
-  uniqLen(x)
+fduplicated(x, fromLast = FALSE)
+funique(x, fromLast = FALSE)
+uniqLen(x)
 }
 \arguments{
   \item{x}{ A vector, data.frame or matrix.}

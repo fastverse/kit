@@ -1,0 +1,262 @@
+---
+title: "Introduction to kit"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to kit}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(kit)
+```
+
+## Overview
+
+**kit** provides a collection of fast utility functions implemented in C for data manipulation in R. It serves as a lightweight, high-performance toolkit for tasks that are either slow or cumbersome in base R, such as row-wise operations, vectorized conditionals, and duplicate detection.
+
+Key features include:
+
+*   **Parallel statistical functions**: Row-wise operations (`psum`, `pmean`, `pfirst`) using OpenMP.
+*   **Vectorized conditionals**: Fast `if-else` logic (`iif`, `nif`, `vswitch`) that preserves attributes.
+*   **Efficient set operations**: Faster `unique`, `duplicated`, and `count` for vectors and data frames.
+*   **Partial sorting**: Retrieve top N elements without sorting the entire vector (`topn`).
+*   **Factor utilities**: Fast character-to-factor conversion (`charToFact`) and level manipulation (`setlevels`).
+
+Most functions are implemented in C and support multi-threading where applicable, making them significantly faster than their base R equivalents on large datasets.
+
+## Parallel Statistical Functions
+
+Computing row-wise statistics across multiple vectors or data frame columns is a common task. While base R has `pmin()` and `pmax()`, it lacks efficient equivalents for sum, mean, or product. **kit** fills this gap.
+
+### Row-wise Arithmetic
+
+`psum()`, `pmean()`, and `pprod()` compute parallel sum, mean, and product respectively. They accept multiple vectors or a single list/data frame.
+
+```{r}
+x <- c(1, 3, NA, 5)
+y <- c(2, NA, 4, 1)
+z <- c(3, 4, 4, 1)
+
+# Parallel sum
+psum(x, y, z, na.rm = TRUE)
+
+# Parallel mean
+pmean(x, y, z, na.rm = TRUE)
+```
+
+They are particularly useful for data frames:
+
+```{r}
+df <- data.frame(a = c(1, 2, 3), b = c(4, 5, 6), c = c(7, 8, 9))
+psum(df)
+```
+
+### Coalescing Values
+
+`pfirst()` and `plast()` return the first or last non-missing value across a set of vectors. This is equivalent to the SQL `COALESCE` function (for `pfirst`).
+
+```{r}
+primary   <- c(NA, 2, NA, 4)
+secondary <- c(1, NA, 3, NA)
+fallback  <- c(0, 0, 0, 0)
+
+# Take first available value
+pfirst(primary, secondary, fallback)
+```
+
+### Logical and Count Operations
+
+You can check for conditions or count values row-wise with `pall`, `pany`, and `pcount`.
+
+```{r}
+a <- c(TRUE, FALSE, NA, TRUE)
+b <- c(TRUE, NA, TRUE, FALSE)
+c <- c(NA, TRUE, FALSE, TRUE)
+
+# Any TRUE per row?
+pany(a, b, c, na.rm = TRUE)
+
+# Count NAs per row
+pcountNA(a, b, c)
+
+# Count specific value (e.g., TRUE) per row
+pcount(a, b, c, value = TRUE)
+```
+
+## Vectorized Conditionals
+
+### Fast If-Else (`iif`)
+
+Base R's `ifelse()` is known to be slow and often strips attributes (like `Date` class or factor levels). `iif()` is a faster, more robust alternative that preserves attributes from the `yes` argument.
+
+```{r}
+dates <- as.Date(c("2024-01-01", "2024-01-02", "2024-01-03"))
+
+# Base ifelse strips class
+class(ifelse(dates > "2024-01-01", dates, dates - 1))
+
+# iif preserves class
+class(iif(dates > "2024-01-01", dates, dates - 1))
+```
+
+It also supports explicit `NA` handling:
+
+```{r}
+x <- c(-2, -1, NA, 1, 2)
+iif(x > 0, "positive", "non-positive", na = "missing")
+```
+
+### Nested Conditionals (`nif`)
+
+For multiple conditions, `nif()` offers a cleaner, more efficient syntax than nested `ifelse()` calls, similar to SQL's `CASE WHEN`.
+
+```{r}
+score <- c(95, 82, 67, 45, 78)
+
+nif(
+  score >= 90, "A",
+  score >= 80, "B", 
+  score >= 70, "C",
+  score >= 60, "D",
+  default = "F"
+)
+```
+
+### Vectorized Switch (`vswitch`, `nswitch`)
+
+`vswitch()` maps input values to outputs efficiently.
+
+```{r}
+status_code <- c(1L, 2L, 3L, 1L, 4L)
+
+vswitch(
+  x = status_code,
+  values = c(1L, 2L, 3L),
+  outputs = c("pending", "approved", "rejected"),
+  default = "unknown"
+)
+```
+
+For pairwise syntax, `nswitch()` pairs values and outputs directly. 
+
+```{r}
+nswitch(status_code,
+  1L, "pending",
+  2L, "approved", 
+  3L, "rejected",
+  default = "unknown"
+)
+```
+
+It can also replace with values from other vectors (columns), mixing scalars and vectors:
+
+```{r}
+df <- data.frame(
+  code = c(1, 2, 1, 3, 2),
+  val_a = c(10, 20, 30, 40, 50),
+  val_b = c(100, 200, 300, 400, 500)
+)
+with(df, nswitch(code,
+  1, val_a,
+  2, val_b,
+  3, 0,
+  default = NA_real_
+))
+```
+
+## Fast Unique and Duplicates
+
+**kit** provides optimized versions of `unique()` and `duplicated()` that are significantly faster for vectors and data frames.
+
+### Unique Values and Duplicates
+
+```{r}
+vec <- c("a", "b", "a", "c", "b")
+
+# Get unique values
+funique(vec)
+
+# Check for duplicates
+fduplicated(vec)
+```
+
+`uniqLen()` efficiently counts the number of unique elements without allocating the unique vector itself:
+
+```{r}
+df <- data.frame(
+  x = c(1, 1, 2, 2),
+  y = c("a", "a", "b", "b")
+)
+uniqLen(df)
+funique(df)
+```
+
+### Counting Occurrences
+
+`countOccur()` produces a frequency table (similar to `table()` or `dplyr::count()`) but returns a standard data frame.
+
+```{r}
+countOccur(c("apple", "banana", "apple", "cherry"))
+```
+
+## Sorting and Utilities
+
+### Partial Sorting (`topn`)
+
+Sorting a large vector just to get the top few elements is inefficient. `topn()` uses a partial sorting algorithm to retrieve the top (or bottom) $N$ indices or values.
+
+```{r}
+set.seed(42)
+x <- rnorm(1000)
+
+# Get indices of top 5 values
+topn(x, n = 5)
+
+# Get the actual values (decreasing = FALSE for bottom values)
+topn(x, n = 5, decreasing = FALSE, index = FALSE)
+```
+
+### Factor Manipulation
+
+`charToFact()` is a fast alternative to `as.factor()` for character vectors, with control over `NA` levels.
+
+```{r}
+charToFact(c("a", "b", NA, "a"))
+```
+
+`setlevels()` allows you to change factor levels by reference (in-place), avoiding object copying.
+
+### Finding Positions (`fpos`)
+
+`fpos()` finds the positions of a pattern (needle) within a vector (haystack). It can be used to find occurrences of one vector inside another.
+
+```{r}
+haystack <- c(1, 2, 3, 4, 1, 2, 5)
+needle <- c(1, 2)
+
+fpos(needle, haystack)
+```
+
+## Summary
+
+| Task | kit function | Base R equivalent |
+|:---|:---|:---|
+| **Row-wise sum** | `psum()` | `rowSums(cbind(...))` |
+| **Row-wise mean** | `pmean()` | `rowMeans(cbind(...))` |
+| **First non-NA** | `pfirst()` | `apply(..., 1, function(x) x[!is.na(x)][1])` |
+| **Fast if-else** | `iif()` | `ifelse()` |
+| **Nested if-else** | `nif()` | Nested `ifelse()` |
+| **Switch** | `vswitch()` | `match()` + indexing |
+| **Unique values** | `funique()` | `unique()` |
+| **Top N indices** | `topn()` | `order()[1:n]` |
+| **Char to Factor** | `charToFact()` | `as.factor()` |
+
+For comprehensive details and performance benchmarks, please refer to the individual function documentation.

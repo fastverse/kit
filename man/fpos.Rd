@@ -2,10 +2,10 @@
 \alias{fpos}
 \title{ Find a matrix position inside a larger matrix }
 \description{
-The function \code{fpos} returns the locations (row and column index) where a small matrix may be found in a larger matrix. The function also works with vectors.  
+The function \code{fpos} returns the locations (row and column index) where a small matrix may be found in a larger matrix. The function also works with vectors.
 }
 \usage{
-  fpos(needle, haystack, all=TRUE, overlap=TRUE)
+fpos(needle, haystack, all=TRUE, overlap=TRUE)
 }
 \arguments{
   \item{needle}{ A matrix or vector to search for in the larger matrix or vector \code{haystack}. Note that the \code{needle} dimensions (row and column size) must be smaller than the \code{haystack} dimensions. }
@@ -24,10 +24,10 @@ small_matrix = matrix(c(14, 15, 24, 25), nrow = 2)
 
 fpos(small_matrix, big_matrix)
 
-# Example 2: find a vector inside a larger one  
+# Example 2: find a vector inside a larger one
 fpos(14:15, 1:30)
 
-# Example 3: 
+# Example 3:
 big_matrix = matrix(c(1:5), nrow = 10, ncol = 5)
 small_matrix = matrix(c(2:3), nrow = 2, ncol = 2)
 

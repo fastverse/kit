@@ -7,9 +7,9 @@
 Experimental functions that enable the user to share a R object between 2 \R sessions.
 }
 \usage{
-  shareData(data, map_name, verbose=FALSE)
-  getData(map_name, verbose=FALSE)
-  clearData(x, verbose=FALSE)
+shareData(data, map_name, verbose=FALSE)
+getData(map_name, verbose=FALSE)
+clearData(x, verbose=FALSE)
 }
 \arguments{
   \item{data}{ A \R object like a vector or a \code{data.frame}.}

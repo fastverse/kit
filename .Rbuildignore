@@ -2,3 +2,8 @@
 ^\.appveyor\.yml$
 ^README\.md$
 LICENSE
+^.*\.Rproj$
+^\.Rproj\.user$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$

@@ -5,7 +5,7 @@
 \code{iif} is a faster and more robust replacement of \code{\link[base]{ifelse}}. It is comparable to \code{dplyr::if_else}, \code{hutils::if_else} and \code{data.table::fifelse}. It returns a value with the same length as \code{test} filled with corresponding values from \code{yes}, \code{no} or eventually \code{na}, depending on \code{test}. It does not support S4 classes.
 }
 \usage{
-  iif(test, yes, no, na=NULL, tprom=FALSE, nThread=getOption("kit.nThread"))
+iif(test, yes, no, na=NULL, tprom=FALSE, nThread=getOption("kit.nThread"))
 }
 \arguments{
   \item{test}{ A logical vector. }
@@ -17,7 +17,7 @@
 \details{
 In contrast to \code{\link[base]{ifelse}} attributes are copied from \code{yes} to the output. This is useful when returning \code{Date}, \code{factor} or other classes.
 Like \code{dplyr::if_else} and \code{hutils::if_else}, the \code{na} argument is by default set to \code{NULL}. This argument is set to \code{NA} in data.table::fifelse.
-Similarly to \code{dplyr::if_else} and when \code{tprom=FALSE}, \code{iif} requires same type for arguments \code{yes} and \code{no}. This is not strictly the case for \code{data.table::fifelse} which will coerce integer to double. 
+Similarly to \code{dplyr::if_else} and when \code{tprom=FALSE}, \code{iif} requires same type for arguments \code{yes} and \code{no}. This is not strictly the case for \code{data.table::fifelse} which will coerce integer to double.
 When \code{tprom=TRUE}, \code{iif} behavior is similar to \code{base::ifelse} in the sense that it will promote or coerce \code{yes} and \code{no}to the "highest" used type. Note, however, that unlike \code{base::ifelse} attributes are still conserved.
 }
 \value{
