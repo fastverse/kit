@@ -1,0 +1,76 @@
+url: https://fastverse.github.io/kit/
+
+home:
+  title: Data Manipulation Functions Implemented in C
+
+template:
+  bootstrap: 5
+  bootswatch: sandstone
+  theme: ayu-dark # Or: ayu-mirage
+  math-rendering: katex
+  bslib:
+    primary: "#1e2124" # "#202224" # "#242424" # "#003254"
+    code-color: "#004573" # "#9c0027" # "#004d80" # b3002d
+    gray-dark: "#3f464d"
+
+development:
+  mode: auto
+
+navbar:
+  title: kit
+  structure:
+    left:
+    - reference
+    - articles
+    - news
+    - blog
+    right:
+    - search
+    - github
+  components:
+    reference:
+      text: Documentation
+      href: reference/index.html
+    articles:
+      text: Vignettes
+      href: articles/index.html
+    news:
+      text: News
+      href: news/index.html
+    github:
+      icon: fa-github
+      href: https://github.com/fastverse/kit
+      aria-label: GitHub
+
+
+reference:
+- title: "Parallel Statistical Functions"
+  desc: "Vector-valued (statistical) functions operating in parallel over vectors passed as arguments, or a single list of vectors/data frame."
+- contents:
+  - parallel-funs
+- title: "Vectorised and Nested Switches"
+  desc: "Fast vectorized and nested switches."
+- contents:
+  - iif
+  - nif
+  - vswitch/nswitch
+- title: "Sorting"
+  desc: "Parallel sort for strings and partial sort (N largest/smallest)."
+- contents:
+  - psort
+  - topn
+- title: "Factors"
+  desc: "Fast character to factor conversion and changing factor levels by reference."
+- contents:
+  - charToFact
+  - setlevels
+- title: "Unique Values and Counts"
+  desc: "Fast duplicated and unique and count the number of times element(s) occur."
+- contents:
+  - fduplicated/funique
+  - count
+- title: "Miscellaneous"
+  desc: "Find a matrix position inside a larger matrix and share data between R sessions."
+- contents:
+  - fpos
+  - shareData/getData/clearData
