@@ -2,12 +2,12 @@
 \alias{topn}
 \title{ Top N values index}
 \description{
-  \code{topn} is used to get the indices of the few values of an input. This is an extension of \code{\link{which.max}}/\code{\link{which.min}} which provide \emph{only} the first such index. 
-  
+  \code{topn} is used to get the indices of the few values of an input. This is an extension of \code{\link{which.max}}/\code{\link{which.min}} which provide \emph{only} the first such index.
+
   The output is the same as \code{order(vec)[1:n]}, but internally optimized not to sort the irrelevant elements of the input (and therefore much faster, for small \code{n} relative to input size).
 }
 \usage{
-  topn(vec, n=6L, decreasing=TRUE, hasna=TRUE, index=TRUE)
+topn(vec, n=6L, decreasing=TRUE, hasna=TRUE, index=TRUE)
 }
 \arguments{
   \item{vec}{ A numeric vector of type numeric or integer. Other types are not supported yet. }
@@ -23,7 +23,7 @@
 \examples{
 x = rnorm(1e4)
 
-# Example 1: index of top 6 negative values 
+# Example 1: index of top 6 negative values
 topn(x, 6L, decreasing=FALSE)
 order(x)[1:6]
 

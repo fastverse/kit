@@ -7,9 +7,9 @@
 Simple functions to count the number of times an element occurs.
 }
 \usage{
-  count(x, value)
-  countNA(x)
-  countOccur(x)
+count(x, value)
+countNA(x)
+countOccur(x)
 }
 \arguments{
   \item{x}{ A vector or list for \code{countNA}. A vector for \code{count} and a vector or \code{data.frame} for \code{countOccur}.}

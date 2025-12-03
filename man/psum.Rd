@@ -14,22 +14,22 @@
 \alias{plast}
 \title{Parallel (Statistical) Functions}
 \description{
-Vector-valued (statistical) functions operating in parallel over vectors passed as arguments, or a single list of vectors (such as a data frame). Similar to \code{\link{pmin}} and \code{\link{pmax}}, except that these functions do not recycle vectors. 
+Vector-valued (statistical) functions operating in parallel over vectors passed as arguments, or a single list of vectors (such as a data frame). Similar to \code{\link{pmin}} and \code{\link{pmax}}, except that these functions do not recycle vectors.
 }
 \usage{
-  psum(..., na.rm = FALSE)
-  pprod(..., na.rm = FALSE)
-  pmean(..., na.rm = FALSE)
-  pfirst(...)  # (na.rm = TRUE)
-  plast(...)   # (na.rm = TRUE)
-  pall(..., na.rm = FALSE)
-  pallNA(...)
-  pallv(..., value)
-  pany(..., na.rm = FALSE)
-  panyNA(...)
-  panyv(..., value)
-  pcount(..., value)
-  pcountNA(...)
+psum(..., na.rm = FALSE)
+pprod(..., na.rm = FALSE)
+pmean(..., na.rm = FALSE)
+pfirst(...)  # (na.rm = TRUE)
+plast(...)   # (na.rm = TRUE)
+pall(..., na.rm = FALSE)
+pallNA(...)
+pallv(..., value)
+pany(..., na.rm = FALSE)
+panyNA(...)
+panyv(..., value)
+pcount(..., value)
+pcountNA(...)
 }
 \arguments{
   \item{...}{ suitable (atomic) vectors of the same length, or a single list of vectors (such as a \code{data.frame}). See Details on the allowed data types for each function, and Examples.}
@@ -43,14 +43,14 @@ Functions \code{psum}, \code{pprod} work for integer, logical, double and comple
 
 \code{pany} and \code{pall} are derived from base functions \code{all} and \code{any} and only allow logical inputs.
 
-\code{pcount} counts the occurrence of \code{value}, and expects arguments of the same data type (except for \code{value = NA}). \code{pcountNA} is equivalent to \code{pcount} with \code{value = NA}, and they both allow \code{NA} counting in mixed-type data. \code{pcountNA} additionally supports list vectors and counts empty or \code{NULL} elements as \code{NA}. 
+\code{pcount} counts the occurrence of \code{value}, and expects arguments of the same data type (except for \code{value = NA}). \code{pcountNA} is equivalent to \code{pcount} with \code{value = NA}, and they both allow \code{NA} counting in mixed-type data. \code{pcountNA} additionally supports list vectors and counts empty or \code{NULL} elements as \code{NA}.
 
-Functions \code{panyv/pallv} are wrappers around \code{pcount}, and \code{panyNA/pallNA} are wrappers around \code{pcountNA}. They return a logical vector instead of the integer count. 
+Functions \code{panyv/pallv} are wrappers around \code{pcount}, and \code{panyNA/pallNA} are wrappers around \code{pcountNA}. They return a logical vector instead of the integer count.
 
 None of these functions recycle vectors i.e. all input vectors need to have the same length. All functions support long vectors with up to \code{2^64-1} elements.
 }
 \value{
-\code{psum/pprod/pmean} return the sum, product or mean of all arguments. The value returned will be of the highest argument type (integer < double < complex). \code{pprod} only returns double or complex. \code{pall[v/NA]} and \code{pany[v/NA]} return a logical vector. \code{pcount[NA]} returns an integer vector. \code{pfirst/plast} return a vector of the same type as the inputs. 
+\code{psum/pprod/pmean} return the sum, product or mean of all arguments. The value returned will be of the highest argument type (integer < double < complex). \code{pprod} only returns double or complex. \code{pall[v/NA]} and \code{pany[v/NA]} return a logical vector. \code{pcount[NA]} returns an integer vector. \code{pfirst/plast} return a vector of the same type as the inputs.
 }
 \seealso{
 Package 'collapse' provides column-wise and scalar-valued analogues to many of these functions.
@@ -61,7 +61,7 @@ x = c(1, 3, NA, 5)
 y = c(2, NA, 4, 1)
 z = c(3, 4, 4, 1)
 
-# Example 1: psum 
+# Example 1: psum
 psum(x, y, z, na.rm = FALSE)
 psum(x, y, z, na.rm = TRUE)
 
@@ -105,7 +105,7 @@ pmean(iris[,1:2])
 # x = rnorm(n) # 763 Mb
 # y = rnorm(n)
 # z = rnorm(n)
-# 
+#
 # microbenchmark::microbenchmark(
 #   kit=psum(x, y, z, na.rm = TRUE),
 #   base=rowSums(do.call(cbind,list(x, y, z)), na.rm=TRUE),
@@ -119,7 +119,7 @@ pmean(iris[,1:2])
 # x = sample(c(TRUE, FALSE, NA), n, TRUE) # 382 Mb
 # y = sample(c(TRUE, FALSE, NA), n, TRUE)
 # z = sample(c(TRUE, FALSE, NA), n, TRUE)
-# 
+#
 # microbenchmark::microbenchmark(
 #   kit=pany(x, y, z, na.rm = TRUE),
 #   base=sapply(1:n, function(i) any(x[i],y[i],z[i],na.rm=TRUE)),

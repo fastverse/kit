@@ -6,8 +6,8 @@
   It is currently experimental and might change in the future. Use with caution.
 }
 \usage{
-  psort(x, decreasing=FALSE, na.last=NA,
-        nThread=getOption("kit.nThread"),c.locale=TRUE)
+psort(x, decreasing=FALSE, na.last=NA,
+      nThread=getOption("kit.nThread"),c.locale=TRUE)
 }
 \arguments{
   \item{x}{ A vector of type character. If other, it will default to \code{base::sort}}
@@ -31,12 +31,12 @@ identical(psort(x, c.locale=TRUE), sort(x, method="radix"))
 # strings = as.character(as.hexmode(1:1000))
 # x = sample(strings, 1e8, replace=TRUE)
 # system.time({kit::psort(x, na.last = TRUE, nThread = 1L)})
-#   user  system elapsed 
+#   user  system elapsed
 #  2.833   0.434   3.277
 # system.time({sort(x,method="radix",na.last = TRUE)})
-#   user  system elapsed 
+#   user  system elapsed
 #  5.597   0.559   6.176
 # system.time({x[order(x,method="radix",na.last = TRUE)]})
-#   user  system elapsed 
+#   user  system elapsed
 #  5.561   0.563   6.143
 }
