@@ -77,6 +77,6 @@ reference:
 
 articles:
 - title: "Introduction to kit"
-    desc: Introduces the package, including a walk-through of all main features.
-    contents:
-    - introduction
+  desc: Introduces the package, including a walk-through of all main features.
+  contents:
+  - introduction
