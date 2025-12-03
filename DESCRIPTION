@@ -11,6 +11,8 @@ Description: Basic functions, implemented in C, for large data manipulation. Fas
 URL: https://fastverse.github.io/kit/, https://github.com/fastverse/kit
 License: GPL-3
 Depends: R (>= 3.1.0)
+Suggests: knitr, rmarkdown
+VignetteBuilder: knitr
 Encoding: UTF-8
 BugReports: https://github.com/fastverse/kit/issues
 NeedsCompilation: yes

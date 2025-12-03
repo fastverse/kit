@@ -1,0 +1,234 @@
+---
+title: "Introduction to kit"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to kit}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+```{r setup}
+library(kit)
+```
+
+## Overview
+
+**kit** provides a collection of fast utility functions implemented in C for data manipulation in R. These functions serve as high-performance alternatives to common base R operations, particularly beneficial when working with large datasets.
+
+The package focuses on three main areas:
+
+1. **Parallel statistical functions** - row-wise operations across vectors
+2. **Vectorized conditionals** - fast if-else and switch operations
+3. **Unique values and sorting** - efficient duplicate detection and partial sorting
+
+All functions are implemented in C with OpenMP support for multi-threading where applicable.
+
+## Parallel Statistical Functions
+
+When working with multiple vectors or columns of a data frame, you often need to compute row-wise statistics. Base R provides `pmin()` and `pmax()` for parallel minimum and maximum, but lacks equivalents for sum, mean, or product. kit fills this gap with a family of `p*` functions.
+
+### Row-wise Arithmetic
+
+```{r}
+x <- c(1, 3, NA, 5)
+y <- c(2, NA, 4, 1)
+z <- c(3, 4, 4, 1)
+
+# Parallel sum across vectors
+psum(x, y, z, na.rm = TRUE)
+
+# Parallel mean
+pmean(x, y, z, na.rm = TRUE)
+
+# Parallel product
+pprod(x, y, z, na.rm = TRUE)
+```
+
+These functions also accept a data frame or list directly:
+
+```{r}
+df <- data.frame(a = c(1, 2, 3), b = c(4, 5, 6), c = c(7, 8, 9))
+psum(df)
+pmean(df)
+```
+
+### First and Last Non-Missing Values
+
+`pfirst()` and `plast()` return the first or last non-missing value across vectors - useful for coalescing multiple data sources:
+
+```{r}
+primary   <- c(NA, 2, NA, 4)
+secondary <- c(1, NA, 3, NA)
+fallback  <- c(0, 0, 0, 0)
+
+# Take first available value
+pfirst(primary, secondary, fallback)
+
+# Take last available value
+plast(primary, secondary, fallback)
+```
+
+### Counting and Logical Operations
+
+Count occurrences of specific values or NAs across vectors:
+
+```{r}
+a <- c(TRUE, FALSE, NA, TRUE)
+b <- c(TRUE, NA, TRUE, FALSE)
+c <- c(NA, TRUE, FALSE, TRUE)
+
+# Count NAs per row
+pcountNA(a, b, c)
+
+# Count TRUE values
+pcount(a, b, c, value = TRUE)
+
+# Any TRUE per row?
+pany(a, b, c, na.rm = TRUE)
+
+# All TRUE per row?
+pall(a, b, c, na.rm = TRUE)
+```
+
+## Vectorized Conditionals
+
+### Fast If-Else with Attribute Preservation
+
+Base R's `ifelse()` has a well-known limitation: it strips attributes from the result. This causes problems with dates, factors, and other classed objects. `iif()` preserves attributes from the `yes` argument:
+
+```{r}
+dates <- as.Date(c("2024-01-01", "2024-01-02", "2024-01-03"))
+
+# Base ifelse strips the Date class
+class(ifelse(dates > "2024-01-01", dates, dates - 1))
+
+# iif preserves it
+class(iif(dates > "2024-01-01", dates, dates - 1))
+iif(dates > "2024-01-01", dates, dates - 1)
+```
+
+`iif()` is also faster and provides an optional `na` argument for explicit NA handling:
+
+```{r}
+x <- c(-2, -1, NA, 1, 2)
+iif(x > 0, "positive", "non-positive", na = "missing")
+```
+
+### Nested Conditionals
+
+For multiple conditions, `nif()` provides a clean syntax similar to SQL's `CASE WHEN`:
+```{r}
+score <- c(95, 82, 67, 45, 78)
+
+nif(
+  score >= 90, "A",
+  score >= 80, "B", 
+  score >= 70, "C",
+  score >= 60, "D",
+  default = "F"
+)
+```
+
+### Vectorized Switch
+
+When mapping values to outputs, `vswitch()` is more efficient than nested `iif()` calls:
+
+```{r}
+status_code <- c(1L, 2L, 3L, 1L, 4L)
+
+vswitch(
+  x = status_code,
+  values = c(1L, 2L, 3L),
+  outputs = c("pending", "approved", "rejected"),
+  default = "unknown"
+)
+```
+
+For inline syntax, `nswitch()` pairs values and outputs directly:
+
+```{r}
+nswitch(status_code,
+  1L, "pending",
+  2L, "approved", 
+  3L, "rejected",
+  default = "unknown"
+)
+```
+
+## Fast Unique and Duplicates
+
+### Finding Unique Values
+
+`funique()` and `fduplicated()` are faster alternatives to base R's `unique()` and `duplicated()`, especially for data frames:
+
+```{r}
+# Unique values
+funique(c("a", "b", "a", "c", "b"))
+
+# Which are duplicates?
+fduplicated(c("a", "b", "a", "c", "b"))
+
+# Count unique values directly
+uniqLen(c("a", "b", "a", "c", "b"))
+```
+
+For data frames, these functions operate on rows:
+
+```{r}
+df <- data.frame(
+  x = c(1, 1, 2, 2),
+  y = c("a", "a", "b", "b")
+)
+funique(df)
+```
+
+### Counting Occurrences
+
+`countOccur()` returns a frequency table as a data frame:
+
+```{r}
+countOccur(c("apple", "banana", "apple", "cherry", "banana", "apple"))
+```
+
+## Partial Sorting with topn
+
+When you only need the top N values from a vector, sorting the entire vector is wasteful. `topn()` uses a partial sorting algorithm that is much faster for small N:
+
+```{r}
+set.seed(42)
+x <- rnorm(1000)
+
+# Get indices of top 5 values
+topn(x, n = 5)
+
+# Get the actual values
+topn(x, n = 5, index = FALSE)
+
+# Bottom 5 (smallest)
+topn(x, n = 5, decreasing = FALSE, index = FALSE)
+```
+
+## Summary
+
+kit provides fast, focused utilities for common data manipulation tasks:
+
+| Task | kit function | Base R equivalent |
+|------|--------------|-------------------|
+| Row-wise sum | `psum()` | `rowSums(cbind(...))` |
+| Row-wise mean | `pmean()` | `rowMeans(cbind(...))` |
+| First non-NA | `pfirst()` | `apply(..., 1, function(x) x[!is.na(x)][1])` |
+| Fast if-else | `iif()` | `ifelse()` |
+| Nested conditions | `nif()` | nested `ifelse()` |
+| Value mapping | `vswitch()` | `match()` + indexing |
+| Unique values | `funique()` | `unique()` |
+| Top N indices | `topn()` | `order()[1:n]` |
+
+For benchmarks and detailed documentation, see the function help pages and the [package website](https://fastverse.github.io/kit/).
+
