@@ -198,16 +198,16 @@
 <a class="anchor" aria-label="anchor" href="#kit-006-2021-02-21"></a></h2><p class="text-muted">CRAN release: 2021-02-21</p>
 <div class="section level4">
 <h4 id="new-features-0-0-6">New Features<a class="anchor" aria-label="anchor" href="#new-features-0-0-6"></a></h4>
-<ul><li><p>Function <code>funique</code> and <code>fduplicated</code> gain an additional argument <code>fromLast=FALSE</code> to indicate whether the search should start from the end or beginning <a href="https://github.com/2005m/kit/pull/11" class="external-link">PR#11</a>.</p></li>
-<li><p>Functions <code>pall</code>, <code>pany</code>, <code>pmean</code>, <code>pprod</code> and <code>psum</code> accept <code>data.frame</code> as input <a href="https://github.com/2005m/kit/pull/15" class="external-link">PR#15</a>. Please see documentation for more information.</p></li>
+<ul><li><p>Function <code>funique</code> and <code>fduplicated</code> gain an additional argument <code>fromLast=FALSE</code> to indicate whether the search should start from the end or beginning <a href="https://github.com/fastverse/kit/pull/11" class="external-link">PR#11</a>.</p></li>
+<li><p>Functions <code>pall</code>, <code>pany</code>, <code>pmean</code>, <code>pprod</code> and <code>psum</code> accept <code>data.frame</code> as input <a href="https://github.com/fastverse/kit/pull/15" class="external-link">PR#15</a>. Please see documentation for more information.</p></li>
 <li><p>Function <code>charToFact</code> is equivalent to to base R <code>as.factor</code> but is much quicker and only converts character vector to factor. Note that it is parallelised. For more details and benchmark please see <code><a href="../reference/charToFact.html">?kit::charToFact</a></code>.</p></li>
 <li><p>Function <code>psort</code> is experimental and equivalent to to base R <code>sort</code> but is only for character vector. It can sort by “C locale” or by “R session locale”. For more details and benchmark please see <code><a href="../reference/psort.html">?kit::psort</a></code>.</p></li>
 </ul></div>
 <div class="section level4">
 <h4 id="notes-0-0-6">Notes<a class="anchor" aria-label="anchor" href="#notes-0-0-6"></a></h4>
-<ul><li><p>A few OpenMP directives were missing for functions <code>vswitch</code> and <code>nswitch</code> for character vectors. These have been added in <a href="https://github.com/2005m/kit/pull/12" class="external-link">PR#12</a>.</p></li>
-<li><p>Function <code>funique</code> was not preserving attributes for character, logical and complex vectors/data.frames. Thanks to Sebastian Krantz (<a href="https://github.com/SebKrantz" class="external-link">@SebKrantz</a>) for bringing that to my attention. This has been fixed in <a href="https://github.com/2005m/kit/pull/13" class="external-link">PR#13</a>.</p></li>
-<li><p>Functions <code>funique</code> and <code>uniqLen</code> should now be faster for <code>factor</code> and <code>logical</code> vectors <a href="https://github.com/2005m/kit/pull/14" class="external-link">PR#14</a>.</p></li>
+<ul><li><p>A few OpenMP directives were missing for functions <code>vswitch</code> and <code>nswitch</code> for character vectors. These have been added in <a href="https://github.com/fastverse/kit/pull/12" class="external-link">PR#12</a>.</p></li>
+<li><p>Function <code>funique</code> was not preserving attributes for character, logical and complex vectors/data.frames. Thanks to Sebastian Krantz (<a href="https://github.com/SebKrantz" class="external-link">@SebKrantz</a>) for bringing that to my attention. This has been fixed in <a href="https://github.com/fastverse/kit/pull/13" class="external-link">PR#13</a>.</p></li>
+<li><p>Functions <code>funique</code> and <code>uniqLen</code> should now be faster for <code>factor</code> and <code>logical</code> vectors <a href="https://github.com/fastverse/kit/pull/14" class="external-link">PR#14</a>.</p></li>
 </ul></div>
 </div>
     <div class="section level2">
@@ -216,8 +216,8 @@
 <div class="section level4">
 <h4 id="new-features-0-0-5">New Features<a class="anchor" aria-label="anchor" href="#new-features-0-0-5"></a></h4>
 <ul><li><p>Function <code>uniqLen(x)</code> is equivalent to base R <code>length(unique(x))</code> and <code>uniqueN</code> in package <a href="https://CRAN.R-project.org/package=data.table" class="external-link">data.table</a>. Function <code>uniqLen</code>, implemented in C, supports vectors, <code>data.frame</code> and <code>matrix</code>. It should be faster than these functions. For more details and benchmark please see <code><a href="../reference/funique.html">?kit::uniqLen</a></code>.</p></li>
-<li><p>Function <code>vswitch</code> now supports mixed encoding and gains an additional argument <code>checkEnc=TRUE</code>. Thanks to Xianying Tan (<a href="https://github.com/shrektan" class="external-link">@shrektan</a>) for the request and review <a href="https://github.com/2005m/kit/pull/7" class="external-link">PR#7</a>.</p></li>
-<li><p>Function <code>nswitch</code> is a nested version of function <code>vswitch</code> and also supports mixed encoding. Please see please see <code><a href="../reference/vswitch.html">?kit::nswitch</a></code> for further details. Thanks to Xianying Tan (<a href="https://github.com/shrektan" class="external-link">@shrektan</a>) for the request and review <a href="https://github.com/2005m/kit/pull/10" class="external-link">PR#10</a>.</p></li>
+<li><p>Function <code>vswitch</code> now supports mixed encoding and gains an additional argument <code>checkEnc=TRUE</code>. Thanks to Xianying Tan (<a href="https://github.com/shrektan" class="external-link">@shrektan</a>) for the request and review <a href="https://github.com/fastverse/kit/pull/7" class="external-link">PR#7</a>.</p></li>
+<li><p>Function <code>nswitch</code> is a nested version of function <code>vswitch</code> and also supports mixed encoding. Please see please see <code><a href="../reference/vswitch.html">?kit::nswitch</a></code> for further details. Thanks to Xianying Tan (<a href="https://github.com/shrektan" class="external-link">@shrektan</a>) for the request and review <a href="https://github.com/fastverse/kit/pull/10" class="external-link">PR#10</a>.</p></li>
 </ul></div>
 <div class="section level4">
 <h4 id="notes-0-0-5">Notes<a class="anchor" aria-label="anchor" href="#notes-0-0-5"></a></h4>

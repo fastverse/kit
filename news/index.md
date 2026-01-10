@@ -226,11 +226,12 @@ CRAN release: 2021-02-21
 
 - Function `funique` and `fduplicated` gain an additional argument
   `fromLast=FALSE` to indicate whether the search should start from the
-  end or beginning [PR#11](https://github.com/2005m/kit/pull/11).
+  end or beginning [PR#11](https://github.com/fastverse/kit/pull/11).
 
 - Functions `pall`, `pany`, `pmean`, `pprod` and `psum` accept
-  `data.frame` as input [PR#15](https://github.com/2005m/kit/pull/15).
-  Please see documentation for more information.
+  `data.frame` as input
+  [PR#15](https://github.com/fastverse/kit/pull/15). Please see
+  documentation for more information.
 
 - Function `charToFact` is equivalent to to base R `as.factor` but is
   much quicker and only converts character vector to factor. Note that
@@ -246,16 +247,17 @@ CRAN release: 2021-02-21
 
 - A few OpenMP directives were missing for functions `vswitch` and
   `nswitch` for character vectors. These have been added in
-  [PR#12](https://github.com/2005m/kit/pull/12).
+  [PR#12](https://github.com/fastverse/kit/pull/12).
 
 - Function `funique` was not preserving attributes for character,
   logical and complex vectors/data.frames. Thanks to Sebastian Krantz
   ([@SebKrantz](https://github.com/SebKrantz)) for bringing that to my
   attention. This has been fixed in
-  [PR#13](https://github.com/2005m/kit/pull/13).
+  [PR#13](https://github.com/fastverse/kit/pull/13).
 
 - Functions `funique` and `uniqLen` should now be faster for `factor`
-  and `logical` vectors [PR#14](https://github.com/2005m/kit/pull/14).
+  and `logical` vectors
+  [PR#14](https://github.com/fastverse/kit/pull/14).
 
 ## kit 0.0.5 (2020-11-21)
 
@@ -274,14 +276,14 @@ CRAN release: 2020-11-21
 - Function `vswitch` now supports mixed encoding and gains an additional
   argument `checkEnc=TRUE`. Thanks to Xianying Tan
   ([@shrektan](https://github.com/shrektan)) for the request and review
-  [PR#7](https://github.com/2005m/kit/pull/7).
+  [PR#7](https://github.com/fastverse/kit/pull/7).
 
 - Function `nswitch` is a nested version of function `vswitch` and also
   supports mixed encoding. Please see please see
   [`?kit::nswitch`](https://fastverse.github.io/kit/reference/vswitch.md)
   for further details. Thanks to Xianying Tan
   ([@shrektan](https://github.com/shrektan)) for the request and review
-  [PR#10](https://github.com/2005m/kit/pull/10).
+  [PR#10](https://github.com/fastverse/kit/pull/10).
 
 #### Notes
 
