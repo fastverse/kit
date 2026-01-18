@@ -87,7 +87,7 @@ uniqLen(iris$Species)  # Faster than length(unique())
 
 ## Documentation
 
-Full documentation available at: https://fastverse.github.io/kit/
+Full documentation available at: https://fastverse.org/kit/
 
 ## License
 
