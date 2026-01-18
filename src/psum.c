@@ -1081,7 +1081,7 @@ SEXP fpminR(SEXP na, SEXP args) {
     if (init_convert) {
       const int *restrict p0 = (type0 == LGLSXP) ? LOGICAL(args0) : INTEGER(args0);
       for (ssize_t j = 0; j < len0; ++j) {
-        pans[j] = p0[j] == NA_INTEGER ? R_NaN : (double)p0[j];
+        pans[j] = p0[j] == NA_INTEGER ? NA_REAL : (double)p0[j];
       }
     }
     if(narm) {
@@ -1120,7 +1120,7 @@ SEXP fpminR(SEXP na, SEXP args) {
       }
       for (ssize_t j = 0; j < len0; ++j) {
         if (!found[j]) {
-          pans[j] = R_NaN; // All values were NA
+          pans[j] = NA_REAL; // All values were NA
         }
       }
     } else {
@@ -1130,7 +1130,7 @@ SEXP fpminR(SEXP na, SEXP args) {
           const double *restrict pa = REAL(argi);
           for (ssize_t j = 0; j < len0; ++j) {
             if (ISNAN(pans[j]) || ISNAN(pa[j])) {
-              pans[j] = R_NaN;
+              pans[j] = NA_REAL;
             } else if (pa[j] < pans[j]) {
               pans[j] = pa[j];
             }
@@ -1139,7 +1139,7 @@ SEXP fpminR(SEXP na, SEXP args) {
           const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
           for (ssize_t j = 0; j < len0; ++j) {
             if (ISNAN(pans[j]) || pa[j] == NA_INTEGER) {
-              pans[j] = R_NaN;
+              pans[j] = NA_REAL;
             } else if ((double)pa[j] < pans[j]) {
               pans[j] = (double)pa[j];
             }
@@ -1250,7 +1250,7 @@ SEXP fpmaxR(SEXP na, SEXP args) {
     if (init_convert) {
       const int *restrict p0 = (type0 == LGLSXP) ? LOGICAL(args0) : INTEGER(args0);
       for (ssize_t j = 0; j < len0; ++j) {
-        pans[j] = p0[j] == NA_INTEGER ? R_NaN : (double)p0[j];
+        pans[j] = p0[j] == NA_INTEGER ? NA_REAL : (double)p0[j];
       }
     }
     if(narm) {
@@ -1289,7 +1289,7 @@ SEXP fpmaxR(SEXP na, SEXP args) {
       }
       for (ssize_t j = 0; j < len0; ++j) {
         if (!found[j]) {
-          pans[j] = R_NaN; // All values were NA
+          pans[j] = NA_REAL; // All values were NA
         }
       }
     } else {
@@ -1299,7 +1299,7 @@ SEXP fpmaxR(SEXP na, SEXP args) {
           const double *restrict pa = REAL(argi);
           for (ssize_t j = 0; j < len0; ++j) {
             if (ISNAN(pans[j]) || ISNAN(pa[j])) {
-              pans[j] = R_NaN;
+              pans[j] = NA_REAL;
             } else if (pa[j] > pans[j]) {
               pans[j] = pa[j];
             }
@@ -1308,7 +1308,7 @@ SEXP fpmaxR(SEXP na, SEXP args) {
           const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
           for (ssize_t j = 0; j < len0; ++j) {
             if (ISNAN(pans[j]) || pa[j] == NA_INTEGER) {
-              pans[j] = R_NaN;
+              pans[j] = NA_REAL;
             } else if ((double)pa[j] > pans[j]) {
               pans[j] = (double)pa[j];
             }
@@ -1370,7 +1370,7 @@ SEXP prangeR(SEXP na, SEXP args) {
   if (type0 != REALSXP) {
     const int *restrict p0 = (type0 == LGLSXP) ? LOGICAL(args0) : INTEGER(args0);
     for (ssize_t j = 0; j < len0; ++j) {
-      pans[j] = p0[j] == NA_INTEGER ? R_NaN : (double)p0[j];
+      pans[j] = p0[j] == NA_INTEGER ? NA_REAL : (double)p0[j];
     }
   } else {
     const double *restrict p0 = REAL(args0);
@@ -1432,7 +1432,7 @@ SEXP prangeR(SEXP na, SEXP args) {
     }
     for (ssize_t j = 0; j < len0; ++j) {
       if (!found[j]) {
-        pans[j] = R_NaN;
+        pans[j] = NA_REAL;
       } else {
         pans[j] = pmax[j] - pans[j];
       }
@@ -1447,8 +1447,8 @@ SEXP prangeR(SEXP na, SEXP args) {
         const double *restrict pa = REAL(argi);
         for (ssize_t j = 0; j < len0; ++j) {
           if (ISNAN(pans[j]) || ISNAN(pa[j])) {
-            pans[j] = R_NaN;
-            pmax[j] = R_NaN;
+            pans[j] = NA_REAL;
+            pmax[j] = NA_REAL;
           } else {
             if (pa[j] < pans[j]) {
               pans[j] = pa[j];
@@ -1462,8 +1462,8 @@ SEXP prangeR(SEXP na, SEXP args) {
         const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
         for (ssize_t j = 0; j < len0; ++j) {
           if (ISNAN(pans[j]) || pa[j] == NA_INTEGER) {
-            pans[j] = R_NaN;
-            pmax[j] = R_NaN;
+            pans[j] = NA_REAL;
+            pmax[j] = NA_REAL;
           } else {
             const double v = (double)pa[j];
             if (v < pans[j]) {
@@ -1478,7 +1478,7 @@ SEXP prangeR(SEXP na, SEXP args) {
     }
     for (ssize_t j = 0; j < len0; ++j) {
       if (ISNAN(pans[j]) || ISNAN(pmax[j])) {
-        pans[j] = R_NaN;
+        pans[j] = NA_REAL;
       } else {
         pans[j] = pmax[j] - pans[j];
       }
