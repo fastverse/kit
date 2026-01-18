@@ -1033,7 +1033,7 @@ SEXP fpminR(SEXP na, SEXP args) {
   case INTSXP: {
     int *restrict pans = (anstype == LGLSXP) ? LOGICAL(ans) : INTEGER(ans);
     if (init_convert) {
-      const int *restrict p0 = LOGICAL(args0);
+      const int *restrict p0 = (type0 == LGLSXP) ? LOGICAL(args0) : INTEGER(args0);
       for (ssize_t j = 0; j < len0; ++j) {
         pans[j] = p0[j];
       }
@@ -1202,7 +1202,7 @@ SEXP fpmaxR(SEXP na, SEXP args) {
   case INTSXP: {
     int *restrict pans = (anstype == LGLSXP) ? LOGICAL(ans) : INTEGER(ans);
     if (init_convert) {
-      const int *restrict p0 = LOGICAL(args0);
+      const int *restrict p0 = (type0 == LGLSXP) ? LOGICAL(args0) : INTEGER(args0);
       for (ssize_t j = 0; j < len0; ++j) {
         pans[j] = p0[j];
       }
