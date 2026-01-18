@@ -7,6 +7,9 @@ passed as arguments, or a single list of vectors/data frame.
 
 - [`psum()`](https://fastverse.github.io/kit/reference/psum.md)
   [`pprod()`](https://fastverse.github.io/kit/reference/psum.md)
+  [`fpmin()`](https://fastverse.github.io/kit/reference/psum.md)
+  [`fpmax()`](https://fastverse.github.io/kit/reference/psum.md)
+  [`prange()`](https://fastverse.github.io/kit/reference/psum.md)
   [`pmean()`](https://fastverse.github.io/kit/reference/psum.md)
   [`pfirst()`](https://fastverse.github.io/kit/reference/psum.md)
   [`plast()`](https://fastverse.github.io/kit/reference/psum.md)

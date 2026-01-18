@@ -67,6 +67,52 @@ psum(df)
 #> [1] 12 15 18
 ```
 
+### Row-wise Min, Max, and Range
+
+[`fpmin()`](https://fastverse.github.io/kit/reference/psum.md),
+[`fpmax()`](https://fastverse.github.io/kit/reference/psum.md), and
+[`prange()`](https://fastverse.github.io/kit/reference/psum.md) compute
+parallel minimum, maximum, and range (max - min) respectively. They
+complement base R’s [`pmin()`](https://rdrr.io/r/base/Extremes.html) and
+[`pmax()`](https://rdrr.io/r/base/Extremes.html), with the added benefit
+of supporting `na.rm` and working efficiently with data frames.
+
+``` r
+x <- c(1, 3, NA, 5)
+y <- c(2, NA, 4, 1)
+z <- c(3, 4, 4, 1)
+
+# Parallel minimum
+fpmin(x, y, z, na.rm = TRUE)
+#> [1] 1 3 4 1
+
+# Parallel maximum
+fpmax(x, y, z, na.rm = TRUE)
+#> [1] 3 4 4 5
+
+# Parallel range (max - min)
+prange(x, y, z, na.rm = TRUE)
+#> [1] 2 1 0 4
+```
+
+Like [`psum()`](https://fastverse.github.io/kit/reference/psum.md) and
+[`pmean()`](https://fastverse.github.io/kit/reference/psum.md), these
+functions preserve the input type when all inputs have the same type,
+and automatically promote to the highest type when inputs are mixed
+(logical \< integer \< double).
+[`prange()`](https://fastverse.github.io/kit/reference/psum.md) always
+returns double to avoid integer overflow.
+
+``` r
+# With data frames
+fpmin(df)
+#> [1] 1 2 3
+fpmax(df)
+#> [1] 7 8 9
+prange(df)
+#> [1] 6 6 6
+```
+
 ### Coalescing Values
 
 [`pfirst()`](https://fastverse.github.io/kit/reference/psum.md) and
@@ -319,6 +365,9 @@ fpos(needle, haystack)
 |:-------------------|:--------------------------------------------------------------------------|:----------------------------------------------------------|
 | **Row-wise sum**   | [`psum()`](https://fastverse.github.io/kit/reference/psum.md)             | `rowSums(cbind(...))`                                     |
 | **Row-wise mean**  | [`pmean()`](https://fastverse.github.io/kit/reference/psum.md)            | `rowMeans(cbind(...))`                                    |
+| **Row-wise min**   | [`fpmin()`](https://fastverse.github.io/kit/reference/psum.md)            | `pmin(...)`                                               |
+| **Row-wise max**   | [`fpmax()`](https://fastverse.github.io/kit/reference/psum.md)            | `pmax(...)`                                               |
+| **Row-wise range** | [`prange()`](https://fastverse.github.io/kit/reference/psum.md)           | `pmax(...) - pmin(...)`                                   |
 | **First non-NA**   | [`pfirst()`](https://fastverse.github.io/kit/reference/psum.md)           | `apply(..., 1, function(x) x[!is.na(x)][1])`              |
 | **Fast if-else**   | [`iif()`](https://fastverse.github.io/kit/reference/iif.md)               | [`ifelse()`](https://rdrr.io/r/base/ifelse.html)          |
 | **Nested if-else** | [`nif()`](https://fastverse.github.io/kit/reference/nif.md)               | Nested [`ifelse()`](https://rdrr.io/r/base/ifelse.html)   |

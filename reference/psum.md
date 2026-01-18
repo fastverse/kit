@@ -11,6 +11,9 @@ functions do not recycle vectors.
 ``` r
 psum(..., na.rm = FALSE)
 pprod(..., na.rm = FALSE)
+fpmin(..., na.rm = FALSE)
+fpmax(..., na.rm = FALSE)
+prange(..., na.rm = FALSE)
 pmean(..., na.rm = FALSE)
 pfirst(...)  # (na.rm = TRUE)
 plast(...)   # (na.rm = TRUE)
@@ -44,8 +47,9 @@ pcountNA(...)
 ## Details
 
 Functions `psum`, `pprod` work for integer, logical, double and complex
-types. `pmean` only supports integer, logical and double types. All 3
-functions will error if used with factors.
+types. `pmean`, `fpmin`, `fpmax`, and `prange` only support integer,
+logical and double types. All these functions will error if used with
+factors.
 
 `pfirst`/`plast` select the first/last non-missing value (or non-empty
 or `NULL` value for list-vectors). They accept all vector types with
@@ -74,7 +78,11 @@ have the same length. All functions support long vectors with up to
 
 `psum/pprod/pmean` return the sum, product or mean of all arguments. The
 value returned will be of the highest argument type (integer \< double
-\< complex). `pprod` only returns double or complex. `pall[v/NA]` and
+\< complex). `pprod` only returns double or complex. `fpmin/fpmax`
+return the element-wise minimum/maximum of all arguments, with the same
+type as the inputs if all inputs have the same type, otherwise the
+highest type (logical \< integer \< double). `prange` returns the
+element-wise range (max - min) as a double vector. `pall[v/NA]` and
 `pany[v/NA]` return a logical vector. `pcount[NA]` returns an integer
 vector. `pfirst/plast` return a vector of the same type as the inputs.
 
@@ -111,6 +119,20 @@ pmean(x, y, z, na.rm = FALSE)
 #> [1] 2.000000       NA       NA 2.333333
 pmean(x, y, z, na.rm = TRUE)
 #> [1] 2.000000 3.500000 4.000000 2.333333
+
+# Example 3b: fpmin, fpmax, prange
+fpmin(x, y, z, na.rm = FALSE)
+#> [1]   1 NaN NaN   1
+fpmin(x, y, z, na.rm = TRUE)
+#> [1] 1 3 4 1
+fpmax(x, y, z, na.rm = FALSE)
+#> [1]   3 NaN NaN   5
+fpmax(x, y, z, na.rm = TRUE)
+#> [1] 3 4 4 5
+prange(x, y, z, na.rm = FALSE)
+#> [1]   2 NaN NaN   4
+prange(x, y, z, na.rm = TRUE)
+#> [1] 2 1 0 4
 
 # Example 4: pfirst and plast
 pfirst(x, y, z)
@@ -178,6 +200,36 @@ pmean(iris[,1:2])
 #> [106] 5.30 3.70 5.10 4.60 5.40 4.85 4.55 4.90 4.10 4.30 4.80 4.75 5.75 5.15 4.10
 #> [121] 5.05 4.20 5.25 4.50 5.00 5.20 4.50 4.55 4.60 5.10 5.10 5.85 4.60 4.55 4.35
 #> [136] 5.35 4.85 4.75 4.50 5.00 4.90 5.00 4.25 5.00 5.00 4.85 4.40 4.75 4.80 4.45
+fpmin(iris[,1:2])
+#>   [1] 3.5 3.0 3.2 3.1 3.6 3.9 3.4 3.4 2.9 3.1 3.7 3.4 3.0 3.0 4.0 4.4 3.9 3.5
+#>  [19] 3.8 3.8 3.4 3.7 3.6 3.3 3.4 3.0 3.4 3.5 3.4 3.2 3.1 3.4 4.1 4.2 3.1 3.2
+#>  [37] 3.5 3.6 3.0 3.4 3.5 2.3 3.2 3.5 3.8 3.0 3.8 3.2 3.7 3.3 3.2 3.2 3.1 2.3
+#>  [55] 2.8 2.8 3.3 2.4 2.9 2.7 2.0 3.0 2.2 2.9 2.9 3.1 3.0 2.7 2.2 2.5 3.2 2.8
+#>  [73] 2.5 2.8 2.9 3.0 2.8 3.0 2.9 2.6 2.4 2.4 2.7 2.7 3.0 3.4 3.1 2.3 3.0 2.5
+#>  [91] 2.6 3.0 2.6 2.3 2.7 3.0 2.9 2.9 2.5 2.8 3.3 2.7 3.0 2.9 3.0 3.0 2.5 2.9
+#> [109] 2.5 3.6 3.2 2.7 3.0 2.5 2.8 3.2 3.0 3.8 2.6 2.2 3.2 2.8 2.8 2.7 3.3 3.2
+#> [127] 2.8 3.0 2.8 3.0 2.8 3.8 2.8 2.8 2.6 3.0 3.4 3.1 3.0 3.1 3.1 3.1 2.7 3.2
+#> [145] 3.3 3.0 2.5 3.0 3.4 3.0
+fpmax(iris[,1:2])
+#>   [1] 5.1 4.9 4.7 4.6 5.0 5.4 4.6 5.0 4.4 4.9 5.4 4.8 4.8 4.3 5.8 5.7 5.4 5.1
+#>  [19] 5.7 5.1 5.4 5.1 4.6 5.1 4.8 5.0 5.0 5.2 5.2 4.7 4.8 5.4 5.2 5.5 4.9 5.0
+#>  [37] 5.5 4.9 4.4 5.1 5.0 4.5 4.4 5.0 5.1 4.8 5.1 4.6 5.3 5.0 7.0 6.4 6.9 5.5
+#>  [55] 6.5 5.7 6.3 4.9 6.6 5.2 5.0 5.9 6.0 6.1 5.6 6.7 5.6 5.8 6.2 5.6 5.9 6.1
+#>  [73] 6.3 6.1 6.4 6.6 6.8 6.7 6.0 5.7 5.5 5.5 5.8 6.0 5.4 6.0 6.7 6.3 5.6 5.5
+#>  [91] 5.5 6.1 5.8 5.0 5.6 5.7 5.7 6.2 5.1 5.7 6.3 5.8 7.1 6.3 6.5 7.6 4.9 7.3
+#> [109] 6.7 7.2 6.5 6.4 6.8 5.7 5.8 6.4 6.5 7.7 7.7 6.0 6.9 5.6 7.7 6.3 6.7 7.2
+#> [127] 6.2 6.1 6.4 7.2 7.4 7.9 6.4 6.3 6.1 7.7 6.3 6.4 6.0 6.9 6.7 6.9 5.8 6.8
+#> [145] 6.7 6.7 6.3 6.5 6.2 5.9
+prange(iris[,1:2])
+#>   [1] 1.6 1.9 1.5 1.5 1.4 1.5 1.2 1.6 1.5 1.8 1.7 1.4 1.8 1.3 1.8 1.3 1.5 1.6
+#>  [19] 1.9 1.3 2.0 1.4 1.0 1.8 1.4 2.0 1.6 1.7 1.8 1.5 1.7 2.0 1.1 1.3 1.8 1.8
+#>  [37] 2.0 1.3 1.4 1.7 1.5 2.2 1.2 1.5 1.3 1.8 1.3 1.4 1.6 1.7 3.8 3.2 3.8 3.2
+#>  [55] 3.7 2.9 3.0 2.5 3.7 2.5 3.0 2.9 3.8 3.2 2.7 3.6 2.6 3.1 4.0 3.1 2.7 3.3
+#>  [73] 3.8 3.3 3.5 3.6 4.0 3.7 3.1 3.1 3.1 3.1 3.1 3.3 2.4 2.6 3.6 4.0 2.6 3.0
+#>  [91] 2.9 3.1 3.2 2.7 2.9 2.7 2.8 3.3 2.6 2.9 3.0 3.1 4.1 3.4 3.5 4.6 2.4 4.4
+#> [109] 4.2 3.6 3.3 3.7 3.8 3.2 3.0 3.2 3.5 3.9 5.1 3.8 3.7 2.8 4.9 3.6 3.4 4.0
+#> [127] 3.4 3.1 3.6 4.2 4.6 4.1 3.6 3.5 3.5 4.7 2.9 3.3 3.0 3.8 3.6 3.8 3.1 3.6
+#> [145] 3.4 3.7 3.8 3.5 2.8 2.9
 
 # Benchmarks
 # ----------

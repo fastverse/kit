@@ -1,5 +1,16 @@
 # Changelog
 
+## kit 0.0.21 (2026-01-17)
+
+#### New Features
+
+- Functions `fpmin`, `fpmax`, and `prange` are added as parallel
+  equivalents of base R `pmin`, `pmax`, and range operations. These
+  functions compute element-wise minimum, maximum, and range (max - min)
+  across multiple vectors. They support integer, logical, and double
+  types, with automatic type promotion. Implemented by
+  [@SebKrantz](https://github.com/SebKrantz).
+
 ## kit 0.0.20 (2025-04-17)
 
 CRAN release: 2025-04-17

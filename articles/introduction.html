@@ -22,7 +22,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">kit</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.0.20</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.0.21</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -131,12 +131,50 @@ multiple vectors or a single list/data frame.</p>
 <span><span class="co">#&gt; [1] 12 15 18</span></span></code></pre></div>
 </div>
 <div class="section level3">
+<h3 id="row-wise-min-max-and-range">Row-wise Min, Max, and Range<a class="anchor" aria-label="anchor" href="#row-wise-min-max-and-range"></a>
+</h3>
+<p><code><a href="../reference/psum.html">fpmin()</a></code>, <code><a href="../reference/psum.html">fpmax()</a></code>, and <code><a href="../reference/psum.html">prange()</a></code>
+compute parallel minimum, maximum, and range (max - min) respectively.
+They complement base R’s <code><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmin()</a></code> and <code><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmax()</a></code>,
+with the added benefit of supporting <code>na.rm</code> and working
+efficiently with data frames.</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">3</span>, <span class="cn">NA</span>, <span class="fl">5</span><span class="op">)</span></span>
+<span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="cn">NA</span>, <span class="fl">4</span>, <span class="fl">1</span><span class="op">)</span></span>
+<span><span class="va">z</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">4</span>, <span class="fl">4</span>, <span class="fl">1</span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># Parallel minimum</span></span>
+<span><span class="fu"><a href="../reference/psum.html">fpmin</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">z</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 1 3 4 1</span></span>
+<span></span>
+<span><span class="co"># Parallel maximum</span></span>
+<span><span class="fu"><a href="../reference/psum.html">fpmax</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">z</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 3 4 4 5</span></span>
+<span></span>
+<span><span class="co"># Parallel range (max - min)</span></span>
+<span><span class="fu"><a href="../reference/psum.html">prange</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">z</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 2 1 0 4</span></span></code></pre></div>
+<p>Like <code><a href="../reference/psum.html">psum()</a></code> and <code><a href="../reference/psum.html">pmean()</a></code>, these functions
+preserve the input type when all inputs have the same type, and
+automatically promote to the highest type when inputs are mixed (logical
+&lt; integer &lt; double). <code><a href="../reference/psum.html">prange()</a></code> always returns double
+to avoid integer overflow.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># With data frames</span></span>
+<span><span class="fu"><a href="../reference/psum.html">fpmin</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 1 2 3</span></span>
+<span><span class="fu"><a href="../reference/psum.html">fpmax</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 7 8 9</span></span>
+<span><span class="fu"><a href="../reference/psum.html">prange</a></span><span class="op">(</span><span class="va">df</span><span class="op">)</span></span>
+<span><span class="co">#&gt; [1] 6 6 6</span></span></code></pre></div>
+</div>
+<div class="section level3">
 <h3 id="coalescing-values">Coalescing Values<a class="anchor" aria-label="anchor" href="#coalescing-values"></a>
 </h3>
 <p><code><a href="../reference/psum.html">pfirst()</a></code> and <code><a href="../reference/psum.html">plast()</a></code> return the first or
 last non-missing value across a set of vectors. This is equivalent to
 the SQL <code>COALESCE</code> function (for <code>pfirst</code>).</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">primary</span>   <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="fl">2</span>, <span class="cn">NA</span>, <span class="fl">4</span><span class="op">)</span></span>
 <span><span class="va">secondary</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="cn">NA</span>, <span class="fl">3</span>, <span class="cn">NA</span><span class="op">)</span></span>
 <span><span class="va">fallback</span>  <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span>, <span class="fl">0</span><span class="op">)</span></span>
@@ -150,7 +188,7 @@ the SQL <code>COALESCE</code> function (for <code>pfirst</code>).</p>
 </h3>
 <p>You can check for conditions or count values row-wise with
 <code>pall</code>, <code>pany</code>, and <code>pcount</code>.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">a</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="cn">FALSE</span>, <span class="cn">NA</span>, <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="va">b</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">TRUE</span>, <span class="cn">NA</span>, <span class="cn">TRUE</span>, <span class="cn">FALSE</span><span class="op">)</span></span>
 <span><span class="va">c</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="cn">NA</span>, <span class="cn">TRUE</span>, <span class="cn">FALSE</span>, <span class="cn">TRUE</span><span class="op">)</span></span>
@@ -178,7 +216,7 @@ the SQL <code>COALESCE</code> function (for <code>pfirst</code>).</p>
 attributes (like <code>Date</code> class or factor levels).
 <code><a href="../reference/iif.html">iif()</a></code> is a faster, more robust alternative that preserves
 attributes from the <code>yes</code> argument.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">dates</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/as.Date.html" class="external-link">as.Date</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"2024-01-01"</span>, <span class="st">"2024-01-02"</span>, <span class="st">"2024-01-03"</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Base ifelse strips class</span></span>
@@ -189,7 +227,7 @@ attributes from the <code>yes</code> argument.</p>
 <span><span class="fu"><a href="https://rdrr.io/r/base/class.html" class="external-link">class</a></span><span class="op">(</span><span class="fu"><a href="../reference/iif.html">iif</a></span><span class="op">(</span><span class="va">dates</span> <span class="op">&gt;</span> <span class="st">"2024-01-01"</span>, <span class="va">dates</span>, <span class="va">dates</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "Date"</span></span></code></pre></div>
 <p>It also supports explicit <code>NA</code> handling:</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">2</span>, <span class="op">-</span><span class="fl">1</span>, <span class="cn">NA</span>, <span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span></span>
 <span><span class="fu"><a href="../reference/iif.html">iif</a></span><span class="op">(</span><span class="va">x</span> <span class="op">&gt;</span> <span class="fl">0</span>, <span class="st">"positive"</span>, <span class="st">"non-positive"</span>, na <span class="op">=</span> <span class="st">"missing"</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] "non-positive" "non-positive" "missing"      "positive"     "positive"</span></span></code></pre></div>
@@ -200,7 +238,7 @@ attributes from the <code>yes</code> argument.</p>
 <p>For multiple conditions, <code><a href="../reference/nif.html">nif()</a></code> offers a cleaner, more
 efficient syntax than nested <code><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse()</a></code> calls, similar to
 SQL’s <code>CASE WHEN</code>.</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">score</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">95</span>, <span class="fl">82</span>, <span class="fl">67</span>, <span class="fl">45</span>, <span class="fl">78</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/nif.html">nif</a></span><span class="op">(</span></span>
@@ -216,7 +254,7 @@ SQL’s <code>CASE WHEN</code>.</p>
 <h3 id="vectorized-switch-vswitch-nswitch">Vectorized Switch (<code>vswitch</code>, <code>nswitch</code>)<a class="anchor" aria-label="anchor" href="#vectorized-switch-vswitch-nswitch"></a>
 </h3>
 <p><code><a href="../reference/vswitch.html">vswitch()</a></code> maps input values to outputs efficiently.</p>
-<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">status_code</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1L</span>, <span class="fl">2L</span>, <span class="fl">3L</span>, <span class="fl">1L</span>, <span class="fl">4L</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="../reference/vswitch.html">vswitch</a></span><span class="op">(</span></span>
@@ -228,7 +266,7 @@ SQL’s <code>CASE WHEN</code>.</p>
 <span><span class="co">#&gt; [1] "pending"  "approved" "rejected" "pending"  "unknown"</span></span></code></pre></div>
 <p>For pairwise syntax, <code><a href="../reference/vswitch.html">nswitch()</a></code> pairs values and outputs
 directly.</p>
-<div class="sourceCode" id="cb10"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/vswitch.html">nswitch</a></span><span class="op">(</span><span class="va">status_code</span>,</span>
 <span>  <span class="fl">1L</span>, <span class="st">"pending"</span>,</span>
 <span>  <span class="fl">2L</span>, <span class="st">"approved"</span>, </span>
@@ -238,7 +276,7 @@ directly.</p>
 <span><span class="co">#&gt; [1] "pending"  "approved" "rejected" "pending"  "unknown"</span></span></code></pre></div>
 <p>It can also replace with values from other vectors (columns), mixing
 scalars and vectors:</p>
-<div class="sourceCode" id="cb11"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  code <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">1</span>, <span class="fl">3</span>, <span class="fl">2</span><span class="op">)</span>,</span>
 <span>  val_a <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">10</span>, <span class="fl">20</span>, <span class="fl">30</span>, <span class="fl">40</span>, <span class="fl">50</span><span class="op">)</span>,</span>
@@ -262,7 +300,7 @@ significantly faster for vectors and data frames.</p>
 <div class="section level3">
 <h3 id="unique-values-and-duplicates">Unique Values and Duplicates<a class="anchor" aria-label="anchor" href="#unique-values-and-duplicates"></a>
 </h3>
-<div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">vec</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"a"</span>, <span class="st">"c"</span>, <span class="st">"b"</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># Get unique values</span></span>
@@ -274,7 +312,7 @@ significantly faster for vectors and data frames.</p>
 <span><span class="co">#&gt; [1] FALSE FALSE  TRUE FALSE  TRUE</span></span></code></pre></div>
 <p><code><a href="../reference/funique.html">uniqLen()</a></code> efficiently counts the number of unique
 elements without allocating the unique vector itself:</p>
-<div class="sourceCode" id="cb13"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">df</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span></span>
 <span>  x <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">2</span><span class="op">)</span>,</span>
 <span>  y <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"a"</span>, <span class="st">"b"</span>, <span class="st">"b"</span><span class="op">)</span></span>
@@ -292,7 +330,7 @@ elements without allocating the unique vector itself:</p>
 <p><code><a href="../reference/count.html">countOccur()</a></code> produces a frequency table (similar to
 <code><a href="https://rdrr.io/r/base/table.html" class="external-link">table()</a></code> or <code>dplyr::count()</code>) but returns a
 standard data frame.</p>
-<div class="sourceCode" id="cb14"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/count.html">countOccur</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"apple"</span>, <span class="st">"banana"</span>, <span class="st">"apple"</span>, <span class="st">"cherry"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt;   Variable Count</span></span>
 <span><span class="co">#&gt; 1    apple     2</span></span>
@@ -310,7 +348,7 @@ standard data frame.</p>
 inefficient. <code><a href="../reference/topn.html">topn()</a></code> uses a partial sorting algorithm to
 retrieve the top (or bottom) <span class="math inline">N</span> indices
 or values.</p>
-<div class="sourceCode" id="cb15"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/Random.html" class="external-link">set.seed</a></span><span class="op">(</span><span class="fl">42</span><span class="op">)</span></span>
 <span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">1000</span><span class="op">)</span></span>
 <span></span>
@@ -328,7 +366,7 @@ or values.</p>
 <p><code><a href="../reference/charToFact.html">charToFact()</a></code> is a fast alternative to
 <code><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor()</a></code> for character vectors, with control over
 <code>NA</code> levels.</p>
-<div class="sourceCode" id="cb16"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb18"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/charToFact.html">charToFact</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"a"</span>, <span class="st">"b"</span>, <span class="cn">NA</span>, <span class="st">"a"</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] a    b    &lt;NA&gt; a   </span></span>
 <span><span class="co">#&gt; Levels: a b &lt;NA&gt;</span></span></code></pre></div>
@@ -341,7 +379,7 @@ reference (in-place), avoiding object copying.</p>
 <p><code><a href="../reference/fpos.html">fpos()</a></code> finds the positions of a pattern (needle) within
 a vector (haystack). It can be used to find occurrences of one vector
 inside another.</p>
-<div class="sourceCode" id="cb17"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb19"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">haystack</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">3</span>, <span class="fl">4</span>, <span class="fl">1</span>, <span class="fl">2</span>, <span class="fl">5</span><span class="op">)</span></span>
 <span><span class="va">needle</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">2</span><span class="op">)</span></span>
 <span></span>
@@ -375,38 +413,53 @@ inside another.</p>
 <td align="left"><code>rowMeans(cbind(...))</code></td>
 </tr>
 <tr class="odd">
+<td align="left"><strong>Row-wise min</strong></td>
+<td align="left"><code><a href="../reference/psum.html">fpmin()</a></code></td>
+<td align="left"><code>pmin(...)</code></td>
+</tr>
+<tr class="even">
+<td align="left"><strong>Row-wise max</strong></td>
+<td align="left"><code><a href="../reference/psum.html">fpmax()</a></code></td>
+<td align="left"><code>pmax(...)</code></td>
+</tr>
+<tr class="odd">
+<td align="left"><strong>Row-wise range</strong></td>
+<td align="left"><code><a href="../reference/psum.html">prange()</a></code></td>
+<td align="left"><code>pmax(...) - pmin(...)</code></td>
+</tr>
+<tr class="even">
 <td align="left"><strong>First non-NA</strong></td>
 <td align="left"><code><a href="../reference/psum.html">pfirst()</a></code></td>
 <td align="left"><code>apply(..., 1, function(x) x[!is.na(x)][1])</code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><strong>Fast if-else</strong></td>
 <td align="left"><code><a href="../reference/iif.html">iif()</a></code></td>
 <td align="left"><code><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse()</a></code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><strong>Nested if-else</strong></td>
 <td align="left"><code><a href="../reference/nif.html">nif()</a></code></td>
 <td align="left">Nested <code><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse()</a></code>
 </td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><strong>Switch</strong></td>
 <td align="left"><code><a href="../reference/vswitch.html">vswitch()</a></code></td>
 <td align="left">
 <code><a href="https://rdrr.io/r/base/match.html" class="external-link">match()</a></code> + indexing</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><strong>Unique values</strong></td>
 <td align="left"><code><a href="../reference/funique.html">funique()</a></code></td>
 <td align="left"><code><a href="https://rdrr.io/r/base/unique.html" class="external-link">unique()</a></code></td>
 </tr>
-<tr class="even">
+<tr class="odd">
 <td align="left"><strong>Top N indices</strong></td>
 <td align="left"><code><a href="../reference/topn.html">topn()</a></code></td>
 <td align="left"><code>order()[1:n]</code></td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left"><strong>Char to Factor</strong></td>
 <td align="left"><code><a href="../reference/charToFact.html">charToFact()</a></code></td>
 <td align="left"><code><a href="https://rdrr.io/r/base/factor.html" class="external-link">as.factor()</a></code></td>
