@@ -1,6 +1,9 @@
 \name{parallel-funs}
 \alias{psum}
 \alias{pprod}
+\alias{fpmin}
+\alias{fpmax}
+\alias{prange}
 \alias{pall}
 \alias{pallNA}
 \alias{pallv}
@@ -19,6 +22,9 @@ Vector-valued (statistical) functions operating in parallel over vectors passed 
 \usage{
 psum(..., na.rm = FALSE)
 pprod(..., na.rm = FALSE)
+fpmin(..., na.rm = FALSE)
+fpmax(..., na.rm = FALSE)
+prange(..., na.rm = FALSE)
 pmean(..., na.rm = FALSE)
 pfirst(...)  # (na.rm = TRUE)
 plast(...)   # (na.rm = TRUE)
@@ -37,7 +43,7 @@ pcountNA(...)
   \item{value}{ A non \code{NULL} value of length 1. } % \code{pcount} will count how many times it occurs.
 }
 \details{
-Functions \code{psum}, \code{pprod} work for integer, logical, double and complex types. \code{pmean} only supports integer, logical and double types. All 3 functions will error if used with factors.
+Functions \code{psum}, \code{pprod} work for integer, logical, double and complex types. \code{pmean}, \code{fpmin}, \code{fpmax}, and \code{prange} only support integer, logical and double types. All these functions will error if used with factors.
 
 \code{pfirst}/\code{plast} select the first/last non-missing value (or non-empty or \code{NULL} value for list-vectors). They accept all vector types with defined missing values + lists, but can only jointly handle integer and double types (not numeric and complex or character and factor). If factors are passed, they all need to have identical levels.
 
@@ -50,7 +56,7 @@ Functions \code{panyv/pallv} are wrappers around \code{pcount}, and \code{panyNA
 None of these functions recycle vectors i.e. all input vectors need to have the same length. All functions support long vectors with up to \code{2^64-1} elements.
 }
 \value{
-\code{psum/pprod/pmean} return the sum, product or mean of all arguments. The value returned will be of the highest argument type (integer < double < complex). \code{pprod} only returns double or complex. \code{pall[v/NA]} and \code{pany[v/NA]} return a logical vector. \code{pcount[NA]} returns an integer vector. \code{pfirst/plast} return a vector of the same type as the inputs.
+\code{psum/pprod/pmean} return the sum, product or mean of all arguments. The value returned will be of the highest argument type (integer < double < complex). \code{pprod} only returns double or complex. \code{fpmin/fpmax} return the element-wise minimum/maximum of all arguments, with the same type as the inputs if all inputs have the same type, otherwise the highest type (logical < integer < double). \code{prange} returns the element-wise range (max - min) as a double vector. \code{pall[v/NA]} and \code{pany[v/NA]} return a logical vector. \code{pcount[NA]} returns an integer vector. \code{pfirst/plast} return a vector of the same type as the inputs.
 }
 \seealso{
 Package 'collapse' provides column-wise and scalar-valued analogues to many of these functions.
@@ -72,6 +78,14 @@ pprod(x, y, z, na.rm = TRUE)
 # Example 3: pmean
 pmean(x, y, z, na.rm = FALSE)
 pmean(x, y, z, na.rm = TRUE)
+
+# Example 3b: fpmin, fpmax, prange
+fpmin(x, y, z, na.rm = FALSE)
+fpmin(x, y, z, na.rm = TRUE)
+fpmax(x, y, z, na.rm = FALSE)
+fpmax(x, y, z, na.rm = TRUE)
+prange(x, y, z, na.rm = FALSE)
+prange(x, y, z, na.rm = TRUE)
 
 # Example 4: pfirst and plast
 pfirst(x, y, z)
@@ -98,6 +112,9 @@ pcountNA(x, y, z)
 pprod(iris[,1:2])
 psum(iris[,1:2])
 pmean(iris[,1:2])
+fpmin(iris[,1:2])
+fpmax(iris[,1:2])
+prange(iris[,1:2])
 
 # Benchmarks
 # ----------

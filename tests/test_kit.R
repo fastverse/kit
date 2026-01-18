@@ -38,6 +38,9 @@ topn        = kit::topn
 setlevels   = kit::setlevels
 psum        = kit::psum
 pprod       = kit::pprod
+fpmin       = kit::fpmin
+fpmax       = kit::fpmax
+prange      = kit::prange
 nif         = kit::nif
 iif         = kit::iif
 fpos        = kit::fpos
@@ -747,6 +750,82 @@ check("0006.026", pprod(iris[,1:2]), iris$Sepal.Length*iris$Sepal.Width)
 check("0006.027", pprod(iris[,1:2],iris[,1:2]), error = "Argument 1 is of type list. Only integer/logical, double and complex types are supported. A data.frame (of the previous types) is also supported as a single input.")
 check("0006.028", pprod(1:150,iris$Species, na.rm = FALSE), error="Function 'pprod' is not meaningful for factors.")
 check("0006.029", pprod(unclass(mtcars)),pprod(mtcars))
+
+rm(x, y, z, x0, y0, z0)
+
+# --------------------------------------------------------------------------------------------------
+#                                   fpmin, fpmax, prange
+# --------------------------------------------------------------------------------------------------
+
+x = c(1, 3, NA, 5)
+y = c(2, NA, 4, 1)
+z = c(3, 4, 4, 1)
+x0 = rnorm(1000L)
+y0 = rnorm(1000L)
+z0 = rnorm(1000L)
+
+# fpmin tests
+check("0008.001", fpmin(x, y, z, na.rm = FALSE), c(1, NA, NA, 1))
+check("0008.002", fpmin(x, y, z, na.rm = TRUE), c(1, 3, 4, 1))
+check("0008.003", fpmin(as.integer(x), as.integer(y), as.integer(z), na.rm = FALSE), c(1L, NA_integer_, NA_integer_, 1L))
+check("0008.004", fpmin(as.integer(x), as.integer(y), as.integer(z), na.rm = TRUE), c(1L, 3L, 4L, 1L))
+check("0008.005", fpmin(c(TRUE, FALSE, NA), c(FALSE, TRUE, FALSE), na.rm = FALSE), c(FALSE, NA, NA))
+check("0008.006", fpmin(c(TRUE, FALSE, NA), c(FALSE, TRUE, FALSE), na.rm = TRUE), c(FALSE, FALSE, FALSE))
+check("0008.007", fpmin(as.raw(z), y, na.rm = TRUE), error = "Argument 1 is of type raw. Only integer/logical and double types are supported. A data.frame (of the previous types) is also supported as a single input.")
+check("0008.008", fpmin(x, y, 1:2, na.rm = FALSE), error = "Argument 3 is of length 2 but argument 1 is of length 4. If you wish to 'recycle' your argument, please use rep() to make this intent clear to the readers of your code.")
+check("0008.009", fpmin(x, y, z, na.rm = NA), error = "Argument 'na.rm' must be TRUE or FALSE and length 1.")
+check("0008.010", fpmin(x, na.rm = FALSE), x)
+check("0008.011", fpmin(as.integer(x), y, z, na.rm = TRUE), c(1, 3, 4, 1))
+check("0008.012", fpmin(x, y, as.integer(z), na.rm = FALSE), c(1, NA, NA, 1))
+check("0008.013", fpmin(na.rm = FALSE), error = "Please supply at least 1 argument. (0 argument supplied)")
+check("0008.014", fpmin(x0, y0, z0), pmin(x0, y0, z0))
+check("0008.015", fpmin(c(1,3,NA,5,NA), c(2,NA,4,1,NA), na.rm = TRUE), c(1, 3, 4, 1, NA))
+check("0008.016", fpmin(NA_integer_, na.rm = TRUE), NA_integer_)
+check("0008.017", fpmin(NA_real_, na.rm = TRUE), NA_real_)
+check("0008.018", fpmin(iris[,1:2]), pmin(iris$Sepal.Length, iris$Sepal.Width))
+check("0008.019", fpmin(1:150,iris$Species, na.rm = FALSE), error="Function 'fpmin' is not meaningful for factors.")
+
+# fpmax tests
+check("0009.001", fpmax(x, y, z, na.rm = FALSE), c(3, NA, NA, 5))
+check("0009.002", fpmax(x, y, z, na.rm = TRUE), c(3, 4, 4, 5))
+check("0009.003", fpmax(as.integer(x), as.integer(y), as.integer(z), na.rm = FALSE), c(3L, NA_integer_, NA_integer_, 5L))
+check("0009.004", fpmax(as.integer(x), as.integer(y), as.integer(z), na.rm = TRUE), c(3L, 4L, 4L, 5L))
+check("0009.005", fpmax(c(TRUE, FALSE, NA), c(FALSE, TRUE, FALSE), na.rm = FALSE), c(TRUE, NA, NA))
+check("0009.006", fpmax(c(TRUE, FALSE, NA), c(FALSE, TRUE, FALSE), na.rm = TRUE), c(TRUE, TRUE, FALSE))
+check("0009.007", fpmax(as.raw(z), y, na.rm = TRUE), error = "Argument 1 is of type raw. Only integer/logical and double types are supported. A data.frame (of the previous types) is also supported as a single input.")
+check("0009.008", fpmax(x, y, 1:2, na.rm = FALSE), error = "Argument 3 is of length 2 but argument 1 is of length 4. If you wish to 'recycle' your argument, please use rep() to make this intent clear to the readers of your code.")
+check("0009.009", fpmax(x, y, z, na.rm = NA), error = "Argument 'na.rm' must be TRUE or FALSE and length 1.")
+check("0009.010", fpmax(x, na.rm = FALSE), x)
+check("0009.011", fpmax(as.integer(x), y, z, na.rm = TRUE), c(3, 4, 4, 5))
+check("0009.012", fpmax(x, y, as.integer(z), na.rm = FALSE), c(3, NA, NA, 5))
+check("0009.013", fpmax(na.rm = FALSE), error = "Please supply at least 1 argument. (0 argument supplied)")
+check("0009.014", fpmax(x0, y0, z0), pmax(x0, y0, z0))
+check("0009.015", fpmax(c(1,3,NA,5,NA), c(2,NA,4,1,NA), na.rm = TRUE), c(2, 3, 4, 5, NA))
+check("0009.016", fpmax(NA_integer_, na.rm = TRUE), NA_integer_)
+check("0009.017", fpmax(NA_real_, na.rm = TRUE), NA_real_)
+check("0009.018", fpmax(iris[,1:2]), pmax(iris$Sepal.Length, iris$Sepal.Width))
+check("0009.019", fpmax(1:150,iris$Species, na.rm = FALSE), error="Function 'fpmax' is not meaningful for factors.")
+
+# prange tests
+check("0010.001", prange(x, y, z, na.rm = FALSE), c(2, NA, NA, 4))
+check("0010.002", prange(x, y, z, na.rm = TRUE), c(2, 1, 0, 4))
+check("0010.003", prange(as.integer(x), as.integer(y), as.integer(z), na.rm = FALSE), c(2, NA, NA, 4))
+check("0010.004", prange(as.integer(x), as.integer(y), as.integer(z), na.rm = TRUE), c(2, 1, 0, 4))
+check("0010.005", prange(c(TRUE, FALSE, NA), c(FALSE, TRUE, FALSE), na.rm = FALSE), c(1, NA, NA))
+check("0010.006", prange(c(TRUE, FALSE, NA), c(FALSE, TRUE, FALSE), na.rm = TRUE), c(1, 1, 0))
+check("0010.007", prange(as.raw(z), y, na.rm = TRUE), error = "Argument 1 is of type raw. Only integer/logical and double types are supported. A data.frame (of the previous types) is also supported as a single input.")
+check("0010.008", prange(x, y, 1:2, na.rm = FALSE), error = "Argument 3 is of length 2 but argument 1 is of length 4. If you wish to 'recycle' your argument, please use rep() to make this intent clear to the readers of your code.")
+check("0010.009", prange(x, y, z, na.rm = NA), error = "Argument 'na.rm' must be TRUE or FALSE and length 1.")
+check("0010.010", prange(x, na.rm = FALSE), c(0, 0, NA, 0))
+check("0010.011", prange(as.integer(x), y, z, na.rm = TRUE), c(2, 1, 0, 4))
+check("0010.012", prange(x, y, as.integer(z), na.rm = FALSE), c(2, NA, NA, 4))
+check("0010.013", prange(na.rm = FALSE), error = "Please supply at least 1 argument. (0 argument supplied)")
+check("0010.014", prange(x0, y0, z0), pmax(x0, y0, z0) - pmin(x0, y0, z0))
+check("0010.015", prange(c(1,3,NA,5,NA), c(2,NA,4,1,NA), na.rm = TRUE), c(1, 0, 0, 4, NA))
+check("0010.016", prange(NA_integer_, na.rm = TRUE), NA_real_)
+check("0010.017", prange(NA_real_, na.rm = TRUE), NA_real_)
+check("0010.018", prange(iris[,1:2]), pmax(iris$Sepal.Length, iris$Sepal.Width) - pmin(iris$Sepal.Length, iris$Sepal.Width))
+check("0010.019", prange(1:150,iris$Species, na.rm = FALSE), error="Function 'prange' is not meaningful for factors.")
 
 rm(x, y, z, x0, y0, z0)
 
