@@ -73,7 +73,9 @@
 <p>Vector-valued functions operating in parallel over vectors or data frames:</p>
 <ul>
 <li>
-<strong><code>psum</code>, <code>pprod</code>, <code>pmean</code></strong>: Parallel sum, product, and mean (similar to <code>pmin</code>/<code>pmax</code>)</li>
+<strong><code>psum</code>, <code>pprod</code>, <code>pmean</code></strong>: Parallel sum, product, and mean</li>
+<li>
+<strong><code>fpmin</code>, <code>fpmax</code>, <code>prange</code></strong>: Parallel minimum, maximum, and range (complements base <code>pmin</code>/<code>pmax</code> with <code>na.rm</code> support)</li>
 <li>
 <strong><code>pall</code>, <code>pany</code></strong>: Parallel all/any operations</li>
 <li>
@@ -85,7 +87,10 @@
 <code class="sourceCode R"><span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">3</span>, <span class="cn">NA</span>, <span class="fl">5</span><span class="op">)</span></span>
 <span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="cn">NA</span>, <span class="fl">4</span>, <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/psum.html">psum</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>  <span class="co"># [1] 3 3 4 6</span></span>
-<span><span class="fu"><a href="reference/psum.html">pmean</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="co"># [1] 1.5 3.0 4.0 3.0</span></span></code></pre></div>
+<span><span class="fu"><a href="reference/psum.html">pmean</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="co"># [1] 1.5 3.0 4.0 3.0</span></span>
+<span><span class="fu"><a href="reference/psum.html">fpmin</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="co"># [1] 1 3 4 1</span></span>
+<span><span class="fu"><a href="reference/psum.html">fpmax</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="co"># [1] 2 3 4 5</span></span>
+<span><span class="fu"><a href="reference/psum.html">prange</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="co"># [1] 1 0 0 4</span></span></code></pre></div>
 </div>
 <div class="section level3">
 <h3 id="vectorized-and-nested-switches">Vectorized and Nested Switches<a class="anchor" aria-label="anchor" href="#vectorized-and-nested-switches"></a>
@@ -155,7 +160,7 @@
 <div class="section level2">
 <h2 id="documentation">Documentation<a class="anchor" aria-label="anchor" href="#documentation"></a>
 </h2>
-<p>Full documentation available at: <a href="https://fastverse.github.io/kit/" class="uri">https://fastverse.github.io/kit/</a></p>
+<p>Full documentation available at: <a href="https://fastverse.org/kit/" class="uri">https://fastverse.org/kit/</a></p>
 </div>
 <div class="section level2">
 <h2 id="license">License<a class="anchor" aria-label="anchor" href="#license"></a>

@@ -64,8 +64,8 @@ items and from `default` if missing.
 
 ## See also
 
-[`iif`](https://fastverse.github.io/kit/reference/iif.md)
-[`nif`](https://fastverse.github.io/kit/reference/nif.md)
+[`iif`](https://fastverse.org/kit/reference/iif.md)
+[`nif`](https://fastverse.org/kit/reference/nif.md)
 
 ## Author
 

@@ -71,8 +71,8 @@ values are taken from the values of `yes` and `no`, eventually `na`.
 
 ## See also
 
-[`nif`](https://fastverse.github.io/kit/reference/nif.md)
-[`vswitch`](https://fastverse.github.io/kit/reference/vswitch.md)
+[`nif`](https://fastverse.org/kit/reference/nif.md)
+[`vswitch`](https://fastverse.org/kit/reference/vswitch.md)
 
 ## Author
 

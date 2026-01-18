@@ -2,7 +2,7 @@
 
 `nif` is a fast implementation of SQL `CASE WHEN` statement for R.
 Conceptually, `nif` is a nested version of
-[`iif`](https://fastverse.github.io/kit/reference/iif.md) (with smarter
+[`iif`](https://fastverse.org/kit/reference/iif.md) (with smarter
 implementation than manual nesting). It is not the same but it is
 comparable to `dplyr::case_when` and `data.table::fcase`.
 
@@ -48,8 +48,8 @@ This argument is not exposed to R users and is more for C users.
 
 ## See also
 
-[`iif`](https://fastverse.github.io/kit/reference/iif.md)
-[`vswitch`](https://fastverse.github.io/kit/reference/vswitch.md)
+[`iif`](https://fastverse.org/kit/reference/iif.md)
+[`vswitch`](https://fastverse.org/kit/reference/vswitch.md)
 
 ## Author
 

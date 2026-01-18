@@ -39,7 +39,7 @@ or number of times each row in a `data.frame` occurs.
 
 ## See also
 
-[`pcount`](https://fastverse.github.io/kit/reference/psum.md)
+[`pcount`](https://fastverse.org/kit/reference/psum.md)
 
 ## Author
 

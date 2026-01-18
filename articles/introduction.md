@@ -39,9 +39,9 @@ equivalents for sum, mean, or product. **kit** fills this gap.
 
 ### Row-wise Arithmetic
 
-[`psum()`](https://fastverse.github.io/kit/reference/psum.md),
-[`pmean()`](https://fastverse.github.io/kit/reference/psum.md), and
-[`pprod()`](https://fastverse.github.io/kit/reference/psum.md) compute
+[`psum()`](https://fastverse.org/kit/reference/psum.md),
+[`pmean()`](https://fastverse.org/kit/reference/psum.md), and
+[`pprod()`](https://fastverse.org/kit/reference/psum.md) compute
 parallel sum, mean, and product respectively. They accept multiple
 vectors or a single list/data frame.
 
@@ -69,9 +69,9 @@ psum(df)
 
 ### Row-wise Min, Max, and Range
 
-[`fpmin()`](https://fastverse.github.io/kit/reference/psum.md),
-[`fpmax()`](https://fastverse.github.io/kit/reference/psum.md), and
-[`prange()`](https://fastverse.github.io/kit/reference/psum.md) compute
+[`fpmin()`](https://fastverse.org/kit/reference/psum.md),
+[`fpmax()`](https://fastverse.org/kit/reference/psum.md), and
+[`prange()`](https://fastverse.org/kit/reference/psum.md) compute
 parallel minimum, maximum, and range (max - min) respectively. They
 complement base R’s [`pmin()`](https://rdrr.io/r/base/Extremes.html) and
 [`pmax()`](https://rdrr.io/r/base/Extremes.html), with the added benefit
@@ -95,13 +95,13 @@ prange(x, y, z, na.rm = TRUE)
 #> [1] 2 1 0 4
 ```
 
-Like [`psum()`](https://fastverse.github.io/kit/reference/psum.md) and
-[`pmean()`](https://fastverse.github.io/kit/reference/psum.md), these
+Like [`psum()`](https://fastverse.org/kit/reference/psum.md) and
+[`pmean()`](https://fastverse.org/kit/reference/psum.md), these
 functions preserve the input type when all inputs have the same type,
 and automatically promote to the highest type when inputs are mixed
 (logical \< integer \< double).
-[`prange()`](https://fastverse.github.io/kit/reference/psum.md) always
-returns double to avoid integer overflow.
+[`prange()`](https://fastverse.org/kit/reference/psum.md) always returns
+double to avoid integer overflow.
 
 ``` r
 # With data frames
@@ -115,9 +115,9 @@ prange(df)
 
 ### Coalescing Values
 
-[`pfirst()`](https://fastverse.github.io/kit/reference/psum.md) and
-[`plast()`](https://fastverse.github.io/kit/reference/psum.md) return
-the first or last non-missing value across a set of vectors. This is
+[`pfirst()`](https://fastverse.org/kit/reference/psum.md) and
+[`plast()`](https://fastverse.org/kit/reference/psum.md) return the
+first or last non-missing value across a set of vectors. This is
 equivalent to the SQL `COALESCE` function (for `pfirst`).
 
 ``` r
@@ -159,9 +159,8 @@ pcount(a, b, c, value = TRUE)
 
 Base R’s [`ifelse()`](https://rdrr.io/r/base/ifelse.html) is known to be
 slow and often strips attributes (like `Date` class or factor levels).
-[`iif()`](https://fastverse.github.io/kit/reference/iif.md) is a faster,
-more robust alternative that preserves attributes from the `yes`
-argument.
+[`iif()`](https://fastverse.org/kit/reference/iif.md) is a faster, more
+robust alternative that preserves attributes from the `yes` argument.
 
 ``` r
 dates <- as.Date(c("2024-01-01", "2024-01-02", "2024-01-03"))
@@ -186,8 +185,8 @@ iif(x > 0, "positive", "non-positive", na = "missing")
 ### Nested Conditionals (`nif`)
 
 For multiple conditions,
-[`nif()`](https://fastverse.github.io/kit/reference/nif.md) offers a
-cleaner, more efficient syntax than nested
+[`nif()`](https://fastverse.org/kit/reference/nif.md) offers a cleaner,
+more efficient syntax than nested
 [`ifelse()`](https://rdrr.io/r/base/ifelse.html) calls, similar to SQL’s
 `CASE WHEN`.
 
@@ -206,8 +205,8 @@ nif(
 
 ### Vectorized Switch (`vswitch`, `nswitch`)
 
-[`vswitch()`](https://fastverse.github.io/kit/reference/vswitch.md) maps
-input values to outputs efficiently.
+[`vswitch()`](https://fastverse.org/kit/reference/vswitch.md) maps input
+values to outputs efficiently.
 
 ``` r
 status_code <- c(1L, 2L, 3L, 1L, 4L)
@@ -222,8 +221,8 @@ vswitch(
 ```
 
 For pairwise syntax,
-[`nswitch()`](https://fastverse.github.io/kit/reference/vswitch.md)
-pairs values and outputs directly.
+[`nswitch()`](https://fastverse.org/kit/reference/vswitch.md) pairs
+values and outputs directly.
 
 ``` r
 nswitch(status_code,
@@ -274,7 +273,7 @@ fduplicated(vec)
 #> [1] FALSE FALSE  TRUE FALSE  TRUE
 ```
 
-[`uniqLen()`](https://fastverse.github.io/kit/reference/funique.md)
+[`uniqLen()`](https://fastverse.org/kit/reference/funique.md)
 efficiently counts the number of unique elements without allocating the
 unique vector itself:
 
@@ -293,8 +292,8 @@ funique(df)
 
 ### Counting Occurrences
 
-[`countOccur()`](https://fastverse.github.io/kit/reference/count.md)
-produces a frequency table (similar to
+[`countOccur()`](https://fastverse.org/kit/reference/count.md) produces
+a frequency table (similar to
 [`table()`](https://rdrr.io/r/base/table.html) or `dplyr::count()`) but
 returns a standard data frame.
 
@@ -311,9 +310,8 @@ countOccur(c("apple", "banana", "apple", "cherry"))
 ### Partial Sorting (`topn`)
 
 Sorting a large vector just to get the top few elements is inefficient.
-[`topn()`](https://fastverse.github.io/kit/reference/topn.md) uses a
-partial sorting algorithm to retrieve the top (or bottom) N indices or
-values.
+[`topn()`](https://fastverse.org/kit/reference/topn.md) uses a partial
+sorting algorithm to retrieve the top (or bottom) N indices or values.
 
 ``` r
 set.seed(42)
@@ -330,10 +328,9 @@ topn(x, n = 5, decreasing = FALSE, index = FALSE)
 
 ### Factor Manipulation
 
-[`charToFact()`](https://fastverse.github.io/kit/reference/charToFact.md)
-is a fast alternative to
-[`as.factor()`](https://rdrr.io/r/base/factor.html) for character
-vectors, with control over `NA` levels.
+[`charToFact()`](https://fastverse.org/kit/reference/charToFact.md) is a
+fast alternative to [`as.factor()`](https://rdrr.io/r/base/factor.html)
+for character vectors, with control over `NA` levels.
 
 ``` r
 charToFact(c("a", "b", NA, "a"))
@@ -341,13 +338,13 @@ charToFact(c("a", "b", NA, "a"))
 #> Levels: a b <NA>
 ```
 
-[`setlevels()`](https://fastverse.github.io/kit/reference/setlevels.md)
-allows you to change factor levels by reference (in-place), avoiding
-object copying.
+[`setlevels()`](https://fastverse.org/kit/reference/setlevels.md) allows
+you to change factor levels by reference (in-place), avoiding object
+copying.
 
 ### Finding Positions (`fpos`)
 
-[`fpos()`](https://fastverse.github.io/kit/reference/fpos.md) finds the
+[`fpos()`](https://fastverse.org/kit/reference/fpos.md) finds the
 positions of a pattern (needle) within a vector (haystack). It can be
 used to find occurrences of one vector inside another.
 
@@ -361,20 +358,20 @@ fpos(needle, haystack)
 
 ## Summary
 
-| Task               | kit function                                                              | Base R equivalent                                         |
-|:-------------------|:--------------------------------------------------------------------------|:----------------------------------------------------------|
-| **Row-wise sum**   | [`psum()`](https://fastverse.github.io/kit/reference/psum.md)             | `rowSums(cbind(...))`                                     |
-| **Row-wise mean**  | [`pmean()`](https://fastverse.github.io/kit/reference/psum.md)            | `rowMeans(cbind(...))`                                    |
-| **Row-wise min**   | [`fpmin()`](https://fastverse.github.io/kit/reference/psum.md)            | `pmin(...)`                                               |
-| **Row-wise max**   | [`fpmax()`](https://fastverse.github.io/kit/reference/psum.md)            | `pmax(...)`                                               |
-| **Row-wise range** | [`prange()`](https://fastverse.github.io/kit/reference/psum.md)           | `pmax(...) - pmin(...)`                                   |
-| **First non-NA**   | [`pfirst()`](https://fastverse.github.io/kit/reference/psum.md)           | `apply(..., 1, function(x) x[!is.na(x)][1])`              |
-| **Fast if-else**   | [`iif()`](https://fastverse.github.io/kit/reference/iif.md)               | [`ifelse()`](https://rdrr.io/r/base/ifelse.html)          |
-| **Nested if-else** | [`nif()`](https://fastverse.github.io/kit/reference/nif.md)               | Nested [`ifelse()`](https://rdrr.io/r/base/ifelse.html)   |
-| **Switch**         | [`vswitch()`](https://fastverse.github.io/kit/reference/vswitch.md)       | [`match()`](https://rdrr.io/r/base/match.html) + indexing |
-| **Unique values**  | [`funique()`](https://fastverse.github.io/kit/reference/funique.md)       | [`unique()`](https://rdrr.io/r/base/unique.html)          |
-| **Top N indices**  | [`topn()`](https://fastverse.github.io/kit/reference/topn.md)             | `order()[1:n]`                                            |
-| **Char to Factor** | [`charToFact()`](https://fastverse.github.io/kit/reference/charToFact.md) | [`as.factor()`](https://rdrr.io/r/base/factor.html)       |
+| Task               | kit function                                                        | Base R equivalent                                         |
+|:-------------------|:--------------------------------------------------------------------|:----------------------------------------------------------|
+| **Row-wise sum**   | [`psum()`](https://fastverse.org/kit/reference/psum.md)             | `rowSums(cbind(...))`                                     |
+| **Row-wise mean**  | [`pmean()`](https://fastverse.org/kit/reference/psum.md)            | `rowMeans(cbind(...))`                                    |
+| **Row-wise min**   | [`fpmin()`](https://fastverse.org/kit/reference/psum.md)            | `pmin(...)`                                               |
+| **Row-wise max**   | [`fpmax()`](https://fastverse.org/kit/reference/psum.md)            | `pmax(...)`                                               |
+| **Row-wise range** | [`prange()`](https://fastverse.org/kit/reference/psum.md)           | `pmax(...) - pmin(...)`                                   |
+| **First non-NA**   | [`pfirst()`](https://fastverse.org/kit/reference/psum.md)           | `apply(..., 1, function(x) x[!is.na(x)][1])`              |
+| **Fast if-else**   | [`iif()`](https://fastverse.org/kit/reference/iif.md)               | [`ifelse()`](https://rdrr.io/r/base/ifelse.html)          |
+| **Nested if-else** | [`nif()`](https://fastverse.org/kit/reference/nif.md)               | Nested [`ifelse()`](https://rdrr.io/r/base/ifelse.html)   |
+| **Switch**         | [`vswitch()`](https://fastverse.org/kit/reference/vswitch.md)       | [`match()`](https://rdrr.io/r/base/match.html) + indexing |
+| **Unique values**  | [`funique()`](https://fastverse.org/kit/reference/funique.md)       | [`unique()`](https://rdrr.io/r/base/unique.html)          |
+| **Top N indices**  | [`topn()`](https://fastverse.org/kit/reference/topn.md)             | `order()[1:n]`                                            |
+| **Char to Factor** | [`charToFact()`](https://fastverse.org/kit/reference/charToFact.md) | [`as.factor()`](https://rdrr.io/r/base/factor.html)       |
 
 For comprehensive details and performance benchmarks, please refer to
 the individual function documentation.

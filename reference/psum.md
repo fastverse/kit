@@ -122,15 +122,15 @@ pmean(x, y, z, na.rm = TRUE)
 
 # Example 3b: fpmin, fpmax, prange
 fpmin(x, y, z, na.rm = FALSE)
-#> [1]   1 NaN NaN   1
+#> [1]  1 NA NA  1
 fpmin(x, y, z, na.rm = TRUE)
 #> [1] 1 3 4 1
 fpmax(x, y, z, na.rm = FALSE)
-#> [1]   3 NaN NaN   5
+#> [1]  3 NA NA  5
 fpmax(x, y, z, na.rm = TRUE)
 #> [1] 3 4 4 5
 prange(x, y, z, na.rm = FALSE)
-#> [1]   2 NaN NaN   4
+#> [1]  2 NA NA  4
 prange(x, y, z, na.rm = TRUE)
 #> [1] 2 1 0 4
 

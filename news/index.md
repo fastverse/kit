@@ -186,7 +186,7 @@ CRAN release: 2021-08-17
 
 - Function `topn` now defaults to base R `order` for large value of `n`.
   Please see updated documentation for more information
-  [`?kit::topn`](https://fastverse.github.io/kit/reference/topn.md).
+  [`?kit::topn`](https://fastverse.org/kit/reference/topn.md).
 
 - Function `charToFact` gains a new argument `addNA=TRUE` to be used to
   include (or not) `NA` in levels of the output.
@@ -194,7 +194,7 @@ CRAN release: 2021-08-17
 - Function `shareData`, `getData` and `clearData` implemented to share
   data objects between R sessions. These functions are experimental and
   might change in the future. Feedback is welcome. Please see
-  [`?kit::shareData`](https://fastverse.github.io/kit/reference/shareData.md)
+  [`?kit::shareData`](https://fastverse.org/kit/reference/shareData.md)
   for more information.
 
 #### Notes
@@ -247,12 +247,12 @@ CRAN release: 2021-02-21
 - Function `charToFact` is equivalent to to base R `as.factor` but is
   much quicker and only converts character vector to factor. Note that
   it is parallelised. For more details and benchmark please see
-  [`?kit::charToFact`](https://fastverse.github.io/kit/reference/charToFact.md).
+  [`?kit::charToFact`](https://fastverse.org/kit/reference/charToFact.md).
 
 - Function `psort` is experimental and equivalent to to base R `sort`
   but is only for character vector. It can sort by “C locale” or by “R
   session locale”. For more details and benchmark please see
-  [`?kit::psort`](https://fastverse.github.io/kit/reference/psort.md).
+  [`?kit::psort`](https://fastverse.org/kit/reference/psort.md).
 
 #### Notes
 
@@ -282,7 +282,7 @@ CRAN release: 2020-11-21
   `uniqLen`, implemented in C, supports vectors, `data.frame` and
   `matrix`. It should be faster than these functions. For more details
   and benchmark please see
-  [`?kit::uniqLen`](https://fastverse.github.io/kit/reference/funique.md).
+  [`?kit::uniqLen`](https://fastverse.org/kit/reference/funique.md).
 
 - Function `vswitch` now supports mixed encoding and gains an additional
   argument `checkEnc=TRUE`. Thanks to Xianying Tan
@@ -291,8 +291,8 @@ CRAN release: 2020-11-21
 
 - Function `nswitch` is a nested version of function `vswitch` and also
   supports mixed encoding. Please see please see
-  [`?kit::nswitch`](https://fastverse.github.io/kit/reference/vswitch.md)
-  for further details. Thanks to Xianying Tan
+  [`?kit::nswitch`](https://fastverse.org/kit/reference/vswitch.md) for
+  further details. Thanks to Xianying Tan
   ([@shrektan](https://github.com/shrektan)) for the request and review
   [PR#10](https://github.com/fastverse/kit/pull/10).
 
@@ -320,7 +320,7 @@ CRAN release: 2020-07-21
 - Function `countOccur(x)`, implemented in C, is comparable to `base` R
   function `table`. It returns a `data.frame` and is between 3 to 50
   times faster. For more details, please see
-  [`?kit::countOccur`](https://fastverse.github.io/kit/reference/count.md).
+  [`?kit::countOccur`](https://fastverse.org/kit/reference/count.md).
 
 - Functions `funique` and `fduplicated` now support matrices.
   Additionally, these two functions should also have better performance
@@ -356,7 +356,7 @@ CRAN release: 2020-06-26
 - Functions `fduplicated(x)` and `funique(x)`, implemented in C, are
   comparable to `base` R functions `duplicated` and `unique`. For more
   details, please see
-  [`?kit::funique`](https://fastverse.github.io/kit/reference/funique.md).
+  [`?kit::funique`](https://fastverse.org/kit/reference/funique.md).
 
 - Functions `psum` and `pprod` have now better performance for type
   double and complex.
@@ -378,14 +378,14 @@ CRAN release: 2020-05-24
 - Function `count(x, value)`, implemented in C, to simply count the
   number of times an element `value` occurs in a vector or in a list
   `x`. For more details, please see
-  [`?kit::count`](https://fastverse.github.io/kit/reference/count.md).
+  [`?kit::count`](https://fastverse.org/kit/reference/count.md).
 
 - Function `pmean(..., na.rm=FALSE)`, `pall(..., na.rm=FALSE)`,
   `pany(..., na.rm=FALSE)` and `pcount(..., value)`, implemented in C,
   are similar to already available function `psum` and `pprod`. These
   functions respectively apply base R functions `mean`, `all` and `any`
   element-wise. For more details, benchmarks and help, please see
-  [`?kit::pmean`](https://fastverse.github.io/kit/reference/psum.md).
+  [`?kit::pmean`](https://fastverse.org/kit/reference/psum.md).
 
 #### Bug Fixes
 
@@ -408,8 +408,8 @@ CRAN release: 2020-05-08
   form `which(x == y, arr.ind =TRUE)`. Function `fpos` returns the
   index(es) or position(s) of a matrix/vector within a larger
   matrix/vector. Please see
-  [`?kit::fpos`](https://fastverse.github.io/kit/reference/fpos.md) for
-  more details.
+  [`?kit::fpos`](https://fastverse.org/kit/reference/fpos.md) for more
+  details.
 
 - Function
   `iif(test, yes, no, na=NULL, tprom=FALSE, nThread=getOption("kit.nThread"))`,
@@ -419,7 +419,7 @@ CRAN release: 2020-05-08
   version of `fifelse`, `iif` allows type promotion like base function
   `ifelse`. For further details about the differences with `fifelse`, as
   well as `hutils::if_else` and `dplyr::if_else`, please see
-  [`?kit::iif`](https://fastverse.github.io/kit/reference/iif.md).
+  [`?kit::iif`](https://fastverse.org/kit/reference/iif.md).
 
 - Function `nif(..., default=NULL)`, implemented in C, is inspired by
   *SQL CASE WHEN*. It is comparable to
@@ -429,19 +429,19 @@ CRAN release: 2020-05-08
   in the [data.table](https://CRAN.R-project.org/package=data.table)
   package but then moved to package kit so its development may resume
   independently. Please see
-  [`?kit::nif`](https://fastverse.github.io/kit/reference/nif.md) for
-  more details.
+  [`?kit::nif`](https://fastverse.org/kit/reference/nif.md) for more
+  details.
 
 - Function `pprod(..., na.rm=FALSE)` and `psum(..., na.rm=FALSE)`,
   implemented in C, are inspired by base function `pmin` and `pmax`.
   These new functions work only for integer, double and complex types
   and do not recycle vectors. Please see
-  [`?kit::psum`](https://fastverse.github.io/kit/reference/psum.md) for
-  more details.
+  [`?kit::psum`](https://fastverse.org/kit/reference/psum.md) for more
+  details.
 
 - Function `setlevels(x, old, new, skip_absent=FALSE)`, implemented in
   C, may be used to set levels of a factor object. Please see
-  [`?kit::setlevels`](https://fastverse.github.io/kit/reference/setlevels.md)
+  [`?kit::setlevels`](https://fastverse.org/kit/reference/setlevels.md)
   for more details.
 
 - Function `topn(vec, n=6L, decreasing=TRUE)`, implemented in C, returns
@@ -449,8 +449,8 @@ CRAN release: 2020-05-08
   `vec`. It is inspired by `dplyr::top_n` and equivalent to base
   functions order and sort in specific cases as shown in the
   documentation. Please see
-  [`?kit::topn`](https://fastverse.github.io/kit/reference/topn.md) for
-  more details.
+  [`?kit::topn`](https://fastverse.org/kit/reference/topn.md) for more
+  details.
 
 - Function
   `vswitch(x, values, outputs, default=NULL, nThread=getOption("kit.nThread"))`,

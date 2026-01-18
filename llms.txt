@@ -32,8 +32,9 @@ install.packages("kit", repos = "https://fastverse.r-universe.dev")
 Vector-valued functions operating in parallel over vectors or data
 frames:
 
-- **`psum`, `pprod`, `pmean`**: Parallel sum, product, and mean (similar
-  to `pmin`/`pmax`)
+- **`psum`, `pprod`, `pmean`**: Parallel sum, product, and mean
+- **`fpmin`, `fpmax`, `prange`**: Parallel minimum, maximum, and range
+  (complements base `pmin`/`pmax` with `na.rm` support)
 - **`pall`, `pany`**: Parallel all/any operations
 - **`pcount`, `pcountNA`**: Count occurrences of values or NAs
 - **`pfirst`, `plast`**: First/last non-missing values
@@ -43,6 +44,9 @@ x <- c(1, 3, NA, 5)
 y <- c(2, NA, 4, 1)
 psum(x, y, na.rm = TRUE)  # [1] 3 3 4 6
 pmean(x, y, na.rm = TRUE) # [1] 1.5 3.0 4.0 3.0
+fpmin(x, y, na.rm = TRUE) # [1] 1 3 4 1
+fpmax(x, y, na.rm = TRUE) # [1] 2 3 4 5
+prange(x, y, na.rm = TRUE) # [1] 1 0 0 4
 ```
 
 ### Vectorized and Nested Switches
@@ -92,7 +96,7 @@ uniqLen(iris$Species)  # Faster than length(unique())
 
 ## Documentation
 
-Full documentation available at: <https://fastverse.github.io/kit/>
+Full documentation available at: <https://fastverse.org/kit/>
 
 ## License
 
@@ -105,67 +109,65 @@ GPL-3
 Vector-valued (statistical) functions operating in parallel over vectors
 passed as arguments, or a single list of vectors/data frame.
 
-- [`psum()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`pprod()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`fpmin()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`fpmax()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`prange()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`pmean()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`pfirst()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`plast()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`pall()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`pallNA()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`pallv()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`pany()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`panyNA()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`panyv()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`pcount()`](https://fastverse.github.io/kit/reference/psum.md)
-  [`pcountNA()`](https://fastverse.github.io/kit/reference/psum.md) :
-  Parallel (Statistical) Functions
+- [`psum()`](https://fastverse.org/kit/reference/psum.md)
+  [`pprod()`](https://fastverse.org/kit/reference/psum.md)
+  [`fpmin()`](https://fastverse.org/kit/reference/psum.md)
+  [`fpmax()`](https://fastverse.org/kit/reference/psum.md)
+  [`prange()`](https://fastverse.org/kit/reference/psum.md)
+  [`pmean()`](https://fastverse.org/kit/reference/psum.md)
+  [`pfirst()`](https://fastverse.org/kit/reference/psum.md)
+  [`plast()`](https://fastverse.org/kit/reference/psum.md)
+  [`pall()`](https://fastverse.org/kit/reference/psum.md)
+  [`pallNA()`](https://fastverse.org/kit/reference/psum.md)
+  [`pallv()`](https://fastverse.org/kit/reference/psum.md)
+  [`pany()`](https://fastverse.org/kit/reference/psum.md)
+  [`panyNA()`](https://fastverse.org/kit/reference/psum.md)
+  [`panyv()`](https://fastverse.org/kit/reference/psum.md)
+  [`pcount()`](https://fastverse.org/kit/reference/psum.md)
+  [`pcountNA()`](https://fastverse.org/kit/reference/psum.md) : Parallel
+  (Statistical) Functions
 
 ## Vectorised and Nested Switches
 
 Fast vectorized and nested switches.
 
-- [`iif()`](https://fastverse.github.io/kit/reference/iif.md) : Fast if
-  else
-- [`nif()`](https://fastverse.github.io/kit/reference/nif.md) : Nested
-  if else
-- [`vswitch()`](https://fastverse.github.io/kit/reference/vswitch.md)
-  [`nswitch()`](https://fastverse.github.io/kit/reference/vswitch.md) :
+- [`iif()`](https://fastverse.org/kit/reference/iif.md) : Fast if else
+- [`nif()`](https://fastverse.org/kit/reference/nif.md) : Nested if else
+- [`vswitch()`](https://fastverse.org/kit/reference/vswitch.md)
+  [`nswitch()`](https://fastverse.org/kit/reference/vswitch.md) :
   Vectorised switch
 
 ## Sorting
 
 Parallel sort for strings and partial sort (N largest/smallest).
 
-- [`psort()`](https://fastverse.github.io/kit/reference/psort.md) :
-  Parallel Sort
-- [`topn()`](https://fastverse.github.io/kit/reference/topn.md) : Top N
-  values index
+- [`psort()`](https://fastverse.org/kit/reference/psort.md) : Parallel
+  Sort
+- [`topn()`](https://fastverse.org/kit/reference/topn.md) : Top N values
+  index
 
 ## Factors
 
 Fast character to factor conversion and changing factor levels by
 reference.
 
-- [`charToFact()`](https://fastverse.github.io/kit/reference/charToFact.md)
-  : Convert Character Vector to Factor
-- [`setlevels()`](https://fastverse.github.io/kit/reference/setlevels.md)
-  : Set levels of a factor object
+- [`charToFact()`](https://fastverse.org/kit/reference/charToFact.md) :
+  Convert Character Vector to Factor
+- [`setlevels()`](https://fastverse.org/kit/reference/setlevels.md) :
+  Set levels of a factor object
 
 ## Unique Values and Counts
 
 Fast duplicated and unique and count the number of times element(s)
 occur.
 
-- [`fduplicated()`](https://fastverse.github.io/kit/reference/funique.md)
-  [`funique()`](https://fastverse.github.io/kit/reference/funique.md)
-  [`uniqLen()`](https://fastverse.github.io/kit/reference/funique.md) :
-  Fast duplicated and unique
-- [`count()`](https://fastverse.github.io/kit/reference/count.md)
-  [`countNA()`](https://fastverse.github.io/kit/reference/count.md)
-  [`countOccur()`](https://fastverse.github.io/kit/reference/count.md) :
+- [`fduplicated()`](https://fastverse.org/kit/reference/funique.md)
+  [`funique()`](https://fastverse.org/kit/reference/funique.md)
+  [`uniqLen()`](https://fastverse.org/kit/reference/funique.md) : Fast
+  duplicated and unique
+- [`count()`](https://fastverse.org/kit/reference/count.md)
+  [`countNA()`](https://fastverse.org/kit/reference/count.md)
+  [`countOccur()`](https://fastverse.org/kit/reference/count.md) :
   count, countNA and countOccur
 
 ## Miscellaneous
@@ -173,12 +175,12 @@ occur.
 Find a matrix position inside a larger matrix and share data between R
 sessions.
 
-- [`fpos()`](https://fastverse.github.io/kit/reference/fpos.md) : Find a
+- [`fpos()`](https://fastverse.org/kit/reference/fpos.md) : Find a
   matrix position inside a larger matrix
-- [`shareData()`](https://fastverse.github.io/kit/reference/shareData.md)
-  [`getData()`](https://fastverse.github.io/kit/reference/shareData.md)
-  [`clearData()`](https://fastverse.github.io/kit/reference/shareData.md)
-  : Share Data between R Sessions
+- [`shareData()`](https://fastverse.org/kit/reference/shareData.md)
+  [`getData()`](https://fastverse.org/kit/reference/shareData.md)
+  [`clearData()`](https://fastverse.org/kit/reference/shareData.md) :
+  Share Data between R Sessions
 
 # Articles
 
@@ -187,4 +189,4 @@ sessions.
 Introduces the package, including a walk-through of all main features.
 
 - [Introduction to
-  kit](https://fastverse.github.io/kit/articles/introduction.md):
+  kit](https://fastverse.org/kit/articles/introduction.md):

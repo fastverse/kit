@@ -5,4 +5,4 @@
 Introduces the package, including a walk-through of all main features.
 
 - [Introduction to
-  kit](https://fastverse.github.io/kit/articles/introduction.md):
+  kit](https://fastverse.org/kit/articles/introduction.md):

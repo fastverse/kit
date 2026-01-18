@@ -32,8 +32,9 @@ install.packages("kit", repos = "https://fastverse.r-universe.dev")
 Vector-valued functions operating in parallel over vectors or data
 frames:
 
-- **`psum`, `pprod`, `pmean`**: Parallel sum, product, and mean (similar
-  to `pmin`/`pmax`)
+- **`psum`, `pprod`, `pmean`**: Parallel sum, product, and mean
+- **`fpmin`, `fpmax`, `prange`**: Parallel minimum, maximum, and range
+  (complements base `pmin`/`pmax` with `na.rm` support)
 - **`pall`, `pany`**: Parallel all/any operations
 - **`pcount`, `pcountNA`**: Count occurrences of values or NAs
 - **`pfirst`, `plast`**: First/last non-missing values
@@ -43,6 +44,9 @@ x <- c(1, 3, NA, 5)
 y <- c(2, NA, 4, 1)
 psum(x, y, na.rm = TRUE)  # [1] 3 3 4 6
 pmean(x, y, na.rm = TRUE) # [1] 1.5 3.0 4.0 3.0
+fpmin(x, y, na.rm = TRUE) # [1] 1 3 4 1
+fpmax(x, y, na.rm = TRUE) # [1] 2 3 4 5
+prange(x, y, na.rm = TRUE) # [1] 1 0 0 4
 ```
 
 ### Vectorized and Nested Switches
@@ -92,7 +96,7 @@ uniqLen(iris$Species)  # Faster than length(unique())
 
 ## Documentation
 
-Full documentation available at: <https://fastverse.github.io/kit/>
+Full documentation available at: <https://fastverse.org/kit/>
 
 ## License
 
