@@ -983,3 +983,507 @@ SEXP pfirstR(SEXP last, SEXP args) {
   UNPROTECT(nprotect);
   return ans;
 }
+
+SEXP fpminR(SEXP na, SEXP args) {
+  if (!IS_BOOL(na)) {
+    error("Argument 'na.rm' must be TRUE or FALSE and length 1.");
+  }
+  const int n=length(args);
+  if (n < 1) {
+    error("Please supply at least 1 argument. (%d argument supplied)", n);
+  }
+  const SEXP args0 = PTR_ETL(args, 0);
+  SEXPTYPE anstype = UTYPEOF(args0);
+  SEXPTYPE type0 = anstype;
+  const R_xlen_t len0 = xlength(args0);
+  Rboolean hasFactor = isFactor(args0);
+  if (anstype != LGLSXP && anstype != INTSXP && anstype != REALSXP) {
+    error("Argument %d is of type %s. Only integer/logical and double types are supported. "
+          "A data.frame (of the previous types) is also supported as a single input. ",
+          1, type2char(anstype));
+  }
+  for (int i = 1; i < n; ++i) {
+    SEXPTYPE type = UTYPEOF(PTR_ETL(args, i));
+    R_xlen_t len1 = xlength(PTR_ETL(args, i));
+    if (type != LGLSXP && type != INTSXP && type != REALSXP) {
+      error("Argument %d is of type %s. Only integer/logical and double types are supported. " , i+1, type2char(type));
+    }
+    if (len1 != len0) {
+      error("Argument %d is of length %zu but argument %d is of length %zu. "
+      "If you wish to 'recycle' your argument, please use rep() to make this intent "
+      "clear to the readers of your code.", i+1, len1, 1, len0);
+    }
+    if (type > anstype) {
+      anstype = type;
+    }
+    hasFactor = hasFactor ? TRUE : isFactor(PTR_ETL(args, i));
+  }
+  if (hasFactor) {
+    error("Function 'fpmin' is not meaningful for factors.");
+  }
+  int nprotect=1;
+  const bool init_convert = (anstype != type0);
+  SEXP ans = init_convert ? PROTECT(allocVector(anstype, len0)) : PROTECT(duplicate(args0));
+  if (init_convert) {
+    copyMostAttrib(args0, ans);
+  }
+  const bool narm = asLogical(na);
+  switch(anstype) {
+  case LGLSXP:
+  case INTSXP: {
+    int *restrict pans = (anstype == LGLSXP) ? LOGICAL(ans) : INTEGER(ans);
+    if (init_convert) {
+      const int *restrict p0 = (type0 == LGLSXP) ? LOGICAL(args0) : INTEGER(args0);
+      for (ssize_t j = 0; j < len0; ++j) {
+        pans[j] = p0[j];
+      }
+    }
+    if(narm) {
+      int *restrict found = (int*)R_alloc(len0, sizeof(int));
+      for (ssize_t j = 0; j < len0; ++j) {
+        found[j] = pans[j] == NA_INTEGER ? 0 : 1;
+      }
+      for (int i = 1; i < n; ++i) {
+        const SEXP argi = PTR_ETL(args, i);
+        const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
+        for (ssize_t j = 0; j < len0; ++j) {
+          if (pa[j] != NA_INTEGER) {
+            if (!found[j]) {
+              pans[j] = pa[j];
+              found[j] = 1;
+            } else if (pa[j] < pans[j]) {
+              pans[j] = pa[j];
+            }
+          }
+        }
+      }
+      for (ssize_t j = 0; j < len0; ++j) {
+        if (!found[j]) {
+          pans[j] = NA_INTEGER; // All values were NA
+        }
+      }
+    } else {
+      for (int i = 1; i < n; ++i) {
+        const SEXP argi = PTR_ETL(args, i);
+        const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
+        for (ssize_t j = 0; j < len0; ++j) {
+          if (pans[j] == NA_INTEGER || pa[j] == NA_INTEGER) {
+            pans[j] = NA_INTEGER;
+          } else if (pa[j] < pans[j]) {
+            pans[j] = pa[j];
+          }
+        }
+      }
+    }
+  } break;
+  case REALSXP: {
+    double *restrict pans = REAL(ans);
+    if (init_convert) {
+      const int *restrict p0 = (type0 == LGLSXP) ? LOGICAL(args0) : INTEGER(args0);
+      for (ssize_t j = 0; j < len0; ++j) {
+        pans[j] = p0[j] == NA_INTEGER ? R_NaN : (double)p0[j];
+      }
+    }
+    if(narm) {
+      int *restrict found = (int*)R_alloc(len0, sizeof(int));
+      for (ssize_t j = 0; j < len0; ++j) {
+        found[j] = ISNAN(pans[j]) ? 0 : 1;
+      }
+      for (int i = 1; i < n; ++i) {
+        const SEXP argi = PTR_ETL(args, i);
+        if (UTYPEOF(argi) == REALSXP) {
+          const double *restrict pa = REAL(argi);
+          for (ssize_t j = 0; j < len0; ++j) {
+            if (!ISNAN(pa[j])) {
+              if (!found[j]) {
+                pans[j] = pa[j];
+                found[j] = 1;
+              } else if (pa[j] < pans[j]) {
+                pans[j] = pa[j];
+              }
+            }
+          }
+        } else {
+          const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
+          for (ssize_t j = 0; j < len0; ++j) {
+            if (pa[j] != NA_INTEGER) {
+              const double v = (double)pa[j];
+              if (!found[j]) {
+                pans[j] = v;
+                found[j] = 1;
+              } else if (v < pans[j]) {
+                pans[j] = v;
+              }
+            }
+          }
+        }
+      }
+      for (ssize_t j = 0; j < len0; ++j) {
+        if (!found[j]) {
+          pans[j] = R_NaN; // All values were NA
+        }
+      }
+    } else {
+      for (int i = 1; i < n; ++i) {
+        const SEXP argi = PTR_ETL(args, i);
+        if (UTYPEOF(argi) == REALSXP) {
+          const double *restrict pa = REAL(argi);
+          for (ssize_t j = 0; j < len0; ++j) {
+            if (ISNAN(pans[j]) || ISNAN(pa[j])) {
+              pans[j] = R_NaN;
+            } else if (pa[j] < pans[j]) {
+              pans[j] = pa[j];
+            }
+          }
+        } else {
+          const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
+          for (ssize_t j = 0; j < len0; ++j) {
+            if (ISNAN(pans[j]) || pa[j] == NA_INTEGER) {
+              pans[j] = R_NaN;
+            } else if ((double)pa[j] < pans[j]) {
+              pans[j] = (double)pa[j];
+            }
+          }
+        }
+      }
+    }
+  } break;
+  }
+  UNPROTECT(nprotect);
+  return ans;
+}
+
+SEXP fpmaxR(SEXP na, SEXP args) {
+  if (!IS_BOOL(na)) {
+    error("Argument 'na.rm' must be TRUE or FALSE and length 1.");
+  }
+  const int n=length(args);
+  if (n < 1) {
+    error("Please supply at least 1 argument. (%d argument supplied)", n);
+  }
+  const SEXP args0 = PTR_ETL(args, 0);
+  SEXPTYPE anstype = UTYPEOF(args0);
+  SEXPTYPE type0 = anstype;
+  const R_xlen_t len0 = xlength(args0);
+  Rboolean hasFactor = isFactor(args0);
+  if (anstype != LGLSXP && anstype != INTSXP && anstype != REALSXP) {
+    error("Argument %d is of type %s. Only integer/logical and double types are supported. "
+          "A data.frame (of the previous types) is also supported as a single input. ",
+          1, type2char(anstype));
+  }
+  for (int i = 1; i < n; ++i) {
+    SEXPTYPE type = UTYPEOF(PTR_ETL(args, i));
+    R_xlen_t len1 = xlength(PTR_ETL(args, i));
+    if (type != LGLSXP && type != INTSXP && type != REALSXP) {
+      error("Argument %d is of type %s. Only integer/logical and double types are supported. " , i+1, type2char(type));
+    }
+    if (len1 != len0) {
+      error("Argument %d is of length %zu but argument %d is of length %zu. "
+      "If you wish to 'recycle' your argument, please use rep() to make this intent "
+      "clear to the readers of your code.", i+1, len1, 1, len0);
+    }
+    if (type > anstype) {
+      anstype = type;
+    }
+    hasFactor = hasFactor ? TRUE : isFactor(PTR_ETL(args, i));
+  }
+  if (hasFactor) {
+    error("Function 'fpmax' is not meaningful for factors.");
+  }
+  int nprotect=1;
+  const bool init_convert = (anstype != type0);
+  SEXP ans = init_convert ? PROTECT(allocVector(anstype, len0)) : PROTECT(duplicate(args0));
+  if (init_convert) {
+    copyMostAttrib(args0, ans);
+  }
+  const bool narm = asLogical(na);
+  switch(anstype) {
+  case LGLSXP:
+  case INTSXP: {
+    int *restrict pans = (anstype == LGLSXP) ? LOGICAL(ans) : INTEGER(ans);
+    if (init_convert) {
+      const int *restrict p0 = (type0 == LGLSXP) ? LOGICAL(args0) : INTEGER(args0);
+      for (ssize_t j = 0; j < len0; ++j) {
+        pans[j] = p0[j];
+      }
+    }
+    if(narm) {
+      int *restrict found = (int*)R_alloc(len0, sizeof(int));
+      for (ssize_t j = 0; j < len0; ++j) {
+        found[j] = pans[j] == NA_INTEGER ? 0 : 1;
+      }
+      for (int i = 1; i < n; ++i) {
+        const SEXP argi = PTR_ETL(args, i);
+        const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
+        for (ssize_t j = 0; j < len0; ++j) {
+          if (pa[j] != NA_INTEGER) {
+            if (!found[j]) {
+              pans[j] = pa[j];
+              found[j] = 1;
+            } else if (pa[j] > pans[j]) {
+              pans[j] = pa[j];
+            }
+          }
+        }
+      }
+      for (ssize_t j = 0; j < len0; ++j) {
+        if (!found[j]) {
+          pans[j] = NA_INTEGER; // All values were NA
+        }
+      }
+    } else {
+      for (int i = 1; i < n; ++i) {
+        const SEXP argi = PTR_ETL(args, i);
+        const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
+        for (ssize_t j = 0; j < len0; ++j) {
+          if (pans[j] == NA_INTEGER || pa[j] == NA_INTEGER) {
+            pans[j] = NA_INTEGER;
+          } else if (pa[j] > pans[j]) {
+            pans[j] = pa[j];
+          }
+        }
+      }
+    }
+  } break;
+  case REALSXP: {
+    double *restrict pans = REAL(ans);
+    if (init_convert) {
+      const int *restrict p0 = (type0 == LGLSXP) ? LOGICAL(args0) : INTEGER(args0);
+      for (ssize_t j = 0; j < len0; ++j) {
+        pans[j] = p0[j] == NA_INTEGER ? R_NaN : (double)p0[j];
+      }
+    }
+    if(narm) {
+      int *restrict found = (int*)R_alloc(len0, sizeof(int));
+      for (ssize_t j = 0; j < len0; ++j) {
+        found[j] = ISNAN(pans[j]) ? 0 : 1;
+      }
+      for (int i = 1; i < n; ++i) {
+        const SEXP argi = PTR_ETL(args, i);
+        if (UTYPEOF(argi) == REALSXP) {
+          const double *restrict pa = REAL(argi);
+          for (ssize_t j = 0; j < len0; ++j) {
+            if (!ISNAN(pa[j])) {
+              if (!found[j]) {
+                pans[j] = pa[j];
+                found[j] = 1;
+              } else if (pa[j] > pans[j]) {
+                pans[j] = pa[j];
+              }
+            }
+          }
+        } else {
+          const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
+          for (ssize_t j = 0; j < len0; ++j) {
+            if (pa[j] != NA_INTEGER) {
+              const double v = (double)pa[j];
+              if (!found[j]) {
+                pans[j] = v;
+                found[j] = 1;
+              } else if (v > pans[j]) {
+                pans[j] = v;
+              }
+            }
+          }
+        }
+      }
+      for (ssize_t j = 0; j < len0; ++j) {
+        if (!found[j]) {
+          pans[j] = R_NaN; // All values were NA
+        }
+      }
+    } else {
+      for (int i = 1; i < n; ++i) {
+        const SEXP argi = PTR_ETL(args, i);
+        if (UTYPEOF(argi) == REALSXP) {
+          const double *restrict pa = REAL(argi);
+          for (ssize_t j = 0; j < len0; ++j) {
+            if (ISNAN(pans[j]) || ISNAN(pa[j])) {
+              pans[j] = R_NaN;
+            } else if (pa[j] > pans[j]) {
+              pans[j] = pa[j];
+            }
+          }
+        } else {
+          const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
+          for (ssize_t j = 0; j < len0; ++j) {
+            if (ISNAN(pans[j]) || pa[j] == NA_INTEGER) {
+              pans[j] = R_NaN;
+            } else if ((double)pa[j] > pans[j]) {
+              pans[j] = (double)pa[j];
+            }
+          }
+        }
+      }
+    }
+  } break;
+  }
+  UNPROTECT(nprotect);
+  return ans;
+}
+
+SEXP prangeR(SEXP na, SEXP args) {
+  if (!IS_BOOL(na)) {
+    error("Argument 'na.rm' must be TRUE or FALSE and length 1.");
+  }
+  const int n=length(args);
+  if (n < 1) {
+    error("Please supply at least 1 argument. (%d argument supplied)", n);
+  }
+  const SEXP args0 = PTR_ETL(args, 0);
+  SEXPTYPE anstype = UTYPEOF(args0);
+  SEXPTYPE type0 = anstype;
+  const R_xlen_t len0 = xlength(args0);
+  Rboolean hasFactor = isFactor(args0);
+  if (anstype != LGLSXP && anstype != INTSXP && anstype != REALSXP) {
+    error("Argument %d is of type %s. Only integer/logical and double types are supported. "
+          "A data.frame (of the previous types) is also supported as a single input. ",
+          1, type2char(anstype));
+  }
+  for (int i = 1; i < n; ++i) {
+    SEXPTYPE type = UTYPEOF(PTR_ETL(args, i));
+    R_xlen_t len1 = xlength(PTR_ETL(args, i));
+    if (type != LGLSXP && type != INTSXP && type != REALSXP) {
+      error("Argument %d is of type %s. Only integer/logical and double types are supported. " , i+1, type2char(type));
+    }
+    if (len1 != len0) {
+      error("Argument %d is of length %zu but argument %d is of length %zu. "
+      "If you wish to 'recycle' your argument, please use rep() to make this intent "
+      "clear to the readers of your code.", i+1, len1, 1, len0);
+    }
+    if (type > anstype) {
+      anstype = type;
+    }
+    hasFactor = hasFactor ? TRUE : isFactor(PTR_ETL(args, i));
+  }
+  if (hasFactor) {
+    error("Function 'prange' is not meaningful for factors.");
+  }
+  // For range, we need to compute max - min, so we need double precision to avoid overflow
+  if(anstype != REALSXP) anstype = REALSXP;
+  int nprotect=1;
+  SEXP ans = PROTECT(allocVector(REALSXP, len0));
+  copyMostAttrib(args0, ans);
+  const bool narm = asLogical(na);
+  double *restrict pans = REAL(ans);
+  // Initialize with first argument
+  if (type0 != REALSXP) {
+    const int *restrict p0 = (type0 == LGLSXP) ? LOGICAL(args0) : INTEGER(args0);
+    for (ssize_t j = 0; j < len0; ++j) {
+      pans[j] = p0[j] == NA_INTEGER ? R_NaN : (double)p0[j];
+    }
+  } else {
+    const double *restrict p0 = REAL(args0);
+    for (ssize_t j = 0; j < len0; ++j) {
+      pans[j] = p0[j];
+    }
+  }
+  double *restrict pmax = (double*)R_alloc(len0, sizeof(double));
+  if (narm) {
+    int *restrict found = (int*)R_alloc(len0, sizeof(int));
+    for (ssize_t j = 0; j < len0; ++j) {
+      if (ISNAN(pans[j])) {
+        found[j] = 0;
+      } else {
+        found[j] = 1;
+        pmax[j] = pans[j];
+      }
+    }
+    for (int i = 1; i < n; ++i) {
+      const SEXP argi = PTR_ETL(args, i);
+      if (UTYPEOF(argi) == REALSXP) {
+        const double *restrict pa = REAL(argi);
+        for (ssize_t j = 0; j < len0; ++j) {
+          if (!ISNAN(pa[j])) {
+            if (!found[j]) {
+              pans[j] = pa[j];
+              pmax[j] = pa[j];
+              found[j] = 1;
+            } else {
+              if (pa[j] < pans[j]) {
+                pans[j] = pa[j];
+              }
+              if (pa[j] > pmax[j]) {
+                pmax[j] = pa[j];
+              }
+            }
+          }
+        }
+      } else {
+        const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
+        for (ssize_t j = 0; j < len0; ++j) {
+          if (pa[j] != NA_INTEGER) {
+            const double v = (double)pa[j];
+            if (!found[j]) {
+              pans[j] = v;
+              pmax[j] = v;
+              found[j] = 1;
+            } else {
+              if (v < pans[j]) {
+                pans[j] = v;
+              }
+              if (v > pmax[j]) {
+                pmax[j] = v;
+              }
+            }
+          }
+        }
+      }
+    }
+    for (ssize_t j = 0; j < len0; ++j) {
+      if (!found[j]) {
+        pans[j] = R_NaN;
+      } else {
+        pans[j] = pmax[j] - pans[j];
+      }
+    }
+  } else {
+    for (ssize_t j = 0; j < len0; ++j) {
+      pmax[j] = pans[j];
+    }
+    for (int i = 1; i < n; ++i) {
+      const SEXP argi = PTR_ETL(args, i);
+      if (UTYPEOF(argi) == REALSXP) {
+        const double *restrict pa = REAL(argi);
+        for (ssize_t j = 0; j < len0; ++j) {
+          if (ISNAN(pans[j]) || ISNAN(pa[j])) {
+            pans[j] = R_NaN;
+            pmax[j] = R_NaN;
+          } else {
+            if (pa[j] < pans[j]) {
+              pans[j] = pa[j];
+            }
+            if (pa[j] > pmax[j]) {
+              pmax[j] = pa[j];
+            }
+          }
+        }
+      } else {
+        const int *restrict pa = (UTYPEOF(argi) == LGLSXP) ? LOGICAL(argi) : INTEGER(argi);
+        for (ssize_t j = 0; j < len0; ++j) {
+          if (ISNAN(pans[j]) || pa[j] == NA_INTEGER) {
+            pans[j] = R_NaN;
+            pmax[j] = R_NaN;
+          } else {
+            const double v = (double)pa[j];
+            if (v < pans[j]) {
+              pans[j] = v;
+            }
+            if (v > pmax[j]) {
+              pmax[j] = v;
+            }
+          }
+        }
+      }
+    }
+    for (ssize_t j = 0; j < len0; ++j) {
+      if (ISNAN(pans[j]) || ISNAN(pmax[j])) {
+        pans[j] = R_NaN;
+      } else {
+        pans[j] = pmax[j] - pans[j];
+      }
+    }
+  }
+  UNPROTECT(nprotect);
+  return ans;
+}

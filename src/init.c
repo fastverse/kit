@@ -18,8 +18,11 @@ static const R_CallMethodDef CallEntries[] = {
   {"CpcountR",                 (DL_FUNC) &pcountR,                 -1},
   {"CpcountNAR",               (DL_FUNC) &pcountNAR,               -1},
   {"CpfirstR",                 (DL_FUNC) &pfirstR,                 -1},
+  {"CfpminR",                  (DL_FUNC) &fpminR,                  -1},
+  {"CfpmaxR",                  (DL_FUNC) &fpmaxR,                  -1},
   {"CpmeanR",                  (DL_FUNC) &pmeanR,                  -1},
   {"CpprodR",                  (DL_FUNC) &pprodR,                  -1},
+  {"CprangeR",                 (DL_FUNC) &prangeR,                 -1},
   {"CpsumR",                   (DL_FUNC) &psumR,                   -1},
   {"CsetlevelsR",              (DL_FUNC) &setlevelsR,              -1},
   {"CtopnR",                   (DL_FUNC) &topnR,                   -1},
@@ -50,7 +53,10 @@ void R_init_kit(DllInfo *dll) {
   R_RegisterCCallable("kit", "CpcountNAR",               (DL_FUNC) &pcountNAR);
   R_RegisterCCallable("kit", "CpfirstR",                 (DL_FUNC) &pfirstR);
   R_RegisterCCallable("kit", "CpmeanR",                  (DL_FUNC) &pmeanR);
+  R_RegisterCCallable("kit", "CfpminR",                  (DL_FUNC) &fpminR);
+  R_RegisterCCallable("kit", "CfpmaxR",                  (DL_FUNC) &fpmaxR);
   R_RegisterCCallable("kit", "CpprodR",                  (DL_FUNC) &pprodR);
+  R_RegisterCCallable("kit", "CprangeR",                 (DL_FUNC) &prangeR);
   R_RegisterCCallable("kit", "CpsumR",                   (DL_FUNC) &psumR);
   R_RegisterCCallable("kit", "CsetlevelsR",              (DL_FUNC) &setlevelsR);
   R_RegisterCCallable("kit", "CtopnR",                   (DL_FUNC) &topnR);
