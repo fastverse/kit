@@ -59,6 +59,34 @@ df <- data.frame(a = c(1, 2, 3), b = c(4, 5, 6), c = c(7, 8, 9))
 psum(df)
 ```
 
+### Row-wise Min, Max, and Range
+
+`fpmin()`, `fpmax()`, and `prange()` compute parallel minimum, maximum, and range (max - min) respectively. They complement base R's `pmin()` and `pmax()`, with the added benefit of supporting `na.rm` and working efficiently with data frames.
+
+```{r}
+x <- c(1, 3, NA, 5)
+y <- c(2, NA, 4, 1)
+z <- c(3, 4, 4, 1)
+
+# Parallel minimum
+fpmin(x, y, z, na.rm = TRUE)
+
+# Parallel maximum
+fpmax(x, y, z, na.rm = TRUE)
+
+# Parallel range (max - min)
+prange(x, y, z, na.rm = TRUE)
+```
+
+Like `psum()` and `pmean()`, these functions preserve the input type when all inputs have the same type, and automatically promote to the highest type when inputs are mixed (logical < integer < double). `prange()` always returns double to avoid integer overflow.
+
+```{r}
+# With data frames
+fpmin(df)
+fpmax(df)
+prange(df)
+```
+
 ### Coalescing Values
 
 `pfirst()` and `plast()` return the first or last non-missing value across a set of vectors. This is equivalent to the SQL `COALESCE` function (for `pfirst`).
@@ -251,6 +279,9 @@ fpos(needle, haystack)
 |:---|:---|:---|
 | **Row-wise sum** | `psum()` | `rowSums(cbind(...))` |
 | **Row-wise mean** | `pmean()` | `rowMeans(cbind(...))` |
+| **Row-wise min** | `fpmin()` | `pmin(...)` |
+| **Row-wise max** | `fpmax()` | `pmax(...)` |
+| **Row-wise range** | `prange()` | `pmax(...) - pmin(...)` |
 | **First non-NA** | `pfirst()` | `apply(..., 1, function(x) x[!is.na(x)][1])` |
 | **Fast if-else** | `iif()` | `ifelse()` |
 | **Nested if-else** | `nif()` | Nested `ifelse()` |
