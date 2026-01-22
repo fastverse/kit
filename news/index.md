@@ -11,6 +11,15 @@
   types, with automatic type promotion. Implemented by
   [@SebKrantz](https://github.com/SebKrantz).
 
+#### Notes
+
+- The GitHub repo move to
+  [fastverse/kit](https://github.com/fastverse/kit/), a new website
+  exists at [fastverse.org/kit](https://fastverse.org/kit/), and
+  Sebastian Krantz and the *fastverse* Team have taken responsibility to
+  maintain the package. Morgan Jacob has stepped down, but remains
+  available for consultation.
+
 ## kit 0.0.20 (2025-04-17)
 
 CRAN release: 2025-04-17

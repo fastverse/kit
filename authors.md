@@ -2,9 +2,9 @@
 
 ## Authors
 
-- **Morgan Jacob**. Author, maintainer, copyright holder.
+- **Morgan Jacob**. Author, copyright holder.
 
-- **Sebastian Krantz**. Contributor.
+- **Sebastian Krantz**. Contributor, maintainer.
 
 ## Citation
 

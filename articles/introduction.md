@@ -2,7 +2,7 @@
 
 ``` r
 library(kit)
-#> Attaching kit 0.0.20 (OPENMP enabled using 1 thread)
+#> Attaching kit 0.0.21 (OPENMP enabled using 1 thread)
 ```
 
 ## Overview
@@ -74,8 +74,8 @@ psum(df)
 [`prange()`](https://fastverse.org/kit/reference/psum.md) compute
 parallel minimum, maximum, and range (max - min) respectively. They
 complement base R’s [`pmin()`](https://rdrr.io/r/base/Extremes.html) and
-[`pmax()`](https://rdrr.io/r/base/Extremes.html), with the added benefit
-of supporting `na.rm` and working efficiently with data frames.
+[`pmax()`](https://rdrr.io/r/base/Extremes.html), providing greater
+performance and the ability to work efficiently with data frames.
 
 ``` r
 x <- c(1, 3, NA, 5)
