@@ -4,6 +4,10 @@
 
 - Functions `fpmin`, `fpmax`, and `prange` are added as parallel equivalents of base R `pmin`, `pmax`, and range operations. These functions compute element-wise minimum, maximum, and range (max - min) across multiple vectors. They support integer, logical, and double types, with automatic type promotion. Implemented by @SebKrantz.
 
+### Notes
+
+- The GitHub repo move to [fastverse/kit](https://github.com/fastverse/kit/), a new website exists at [fastverse.org/kit](https://fastverse.org/kit/), and Sebastian Krantz and the *fastverse* Team have taken responsibility to maintain the package. Morgan Jacob has stepped down, but remains available for consultation.
+
 # kit 0.0.20 <small>(2025-04-17)</small>
 
 ### Notes
