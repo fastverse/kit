@@ -27,7 +27,7 @@ install.packages("kit", repos = "https://fastverse.r-universe.dev")
 Vector-valued functions operating in parallel over vectors or data frames:
 
 - **`psum`, `pprod`, `pmean`**: Parallel sum, product, and mean
-- **`fpmin`, `fpmax`, `prange`**: Parallel minimum, maximum, and range (complements base `pmin`/`pmax` with `na.rm` support)
+- **`fpmin`, `fpmax`, `prange`**: (Fast) parallel minimum, maximum, and range
 - **`pall`, `pany`**: Parallel all/any operations
 - **`pcount`, `pcountNA`**: Count occurrences of values or NAs
 - **`pfirst`, `plast`**: First/last non-missing values

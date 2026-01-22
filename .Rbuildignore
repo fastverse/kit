@@ -2,6 +2,11 @@
 ^\.appveyor\.yml$
 ^README\.md$
 LICENSE
+.DS_Store
+^\.DS_Store$
+^\.DS\_Store$
+a.out.dSYM
+^a\.out\.dSYM$
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^_pkgdown\.yml$

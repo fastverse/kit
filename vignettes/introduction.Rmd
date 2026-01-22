@@ -61,7 +61,7 @@ psum(df)
 
 ### Row-wise Min, Max, and Range
 
-`fpmin()`, `fpmax()`, and `prange()` compute parallel minimum, maximum, and range (max - min) respectively. They complement base R's `pmin()` and `pmax()`, with the added benefit of supporting `na.rm` and working efficiently with data frames.
+`fpmin()`, `fpmax()`, and `prange()` compute parallel minimum, maximum, and range (max - min) respectively. They complement base R's `pmin()` and `pmax()`, providing greater performance and the ability to work efficiently with data frames.
 
 ```{r}
 x <- c(1, 3, NA, 5)
