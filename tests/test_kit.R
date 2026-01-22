@@ -1899,8 +1899,9 @@ rm(x, y, z, x1, y1, z1, base_pfirst, base_plast)
 
 rm(check,count,countNA,countOccur,fduplicated,fpos,funique,iif,nswitch,nif,pall,pany,pcount,pcountNA,
    pmean,pprod,psum,setlevels,topn,uniqLen,vswitch,psort,charToFact,shareData,getData,clearData,
-   pallNA, pallv, panyv, panyNA, pfirst, plast)
+   pallNA, pallv, panyv, panyNA, pfirst, plast, fpmax, fpmin, prange)
 
 # --------------------------------------------------------------------------------------------------
 #                                   END
 # --------------------------------------------------------------------------------------------------
+
