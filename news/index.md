@@ -2,6 +2,8 @@
 
 ## kit 0.0.21 (2026-01-17)
 
+CRAN release: 2026-01-23
+
 #### New Features
 
 - Functions `fpmin`, `fpmax`, and `prange` are added as parallel

@@ -9,7 +9,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/fastverse/kit/blob/master/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/fastverse/kit/blob/v0.0.21/DESCRIPTION)
 
 Jacob M (2026). *kit: Data Manipulation Functions Implemented in C*.
 [doi:10.32614/CRAN.package.kit](https://doi.org/10.32614/CRAN.package.kit),
