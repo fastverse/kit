@@ -80,15 +80,15 @@ The output is the same as order(vec)[1:n], but internally optimized not to sort 
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Example 1: index of top 6 negative values</span></span></span>
 <span class="r-in"><span><span class="fu">topn</span><span class="op">(</span><span class="va">x</span>, <span class="fl">6L</span>, decreasing<span class="op">=</span><span class="cn">FALSE</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3848 9361 5239 9070 4205 7491</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3859 9372 5250 9081 4216 7502</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">]</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3848 9361 5239 9070 4205 7491</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 3859 9372 5250 9081 4216 7502</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Example 2: index of top 6 positive values</span></span></span>
 <span class="r-in"><span><span class="fu">topn</span><span class="op">(</span><span class="va">x</span>, <span class="fl">6L</span>, decreasing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 9426 3317 3991 8425 6241 1191</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 9437 3328 4002 8436 6252 1202</span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/order.html" class="external-link">order</a></span><span class="op">(</span><span class="va">x</span>, decreasing<span class="op">=</span><span class="cn">TRUE</span><span class="op">)</span><span class="op">[</span><span class="fl">1</span><span class="op">:</span><span class="fl">6</span><span class="op">]</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 9426 3317 3991 8425 6241 1191</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 9437 3328 4002 8436 6252 1202</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Example 3: top 6 negative values</span></span></span>
 <span class="r-in"><span><span class="fu">topn</span><span class="op">(</span><span class="va">x</span>, <span class="fl">6L</span>, decreasing<span class="op">=</span><span class="cn">FALSE</span>, index<span class="op">=</span><span class="cn">FALSE</span><span class="op">)</span></span></span>

@@ -62,15 +62,15 @@ x = rnorm(1e4)
 
 # Example 1: index of top 6 negative values
 topn(x, 6L, decreasing=FALSE)
-#> [1] 3848 9361 5239 9070 4205 7491
+#> [1] 3859 9372 5250 9081 4216 7502
 order(x)[1:6]
-#> [1] 3848 9361 5239 9070 4205 7491
+#> [1] 3859 9372 5250 9081 4216 7502
 
 # Example 2: index of top 6 positive values
 topn(x, 6L, decreasing = TRUE)
-#> [1] 9426 3317 3991 8425 6241 1191
+#> [1] 9437 3328 4002 8436 6252 1202
 order(x, decreasing=TRUE)[1:6]
-#> [1] 9426 3317 3991 8425 6241 1191
+#> [1] 9437 3328 4002 8436 6252 1202
 
 # Example 3: top 6 negative values
 topn(x, 6L, decreasing=FALSE, index=FALSE)
