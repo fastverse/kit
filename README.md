@@ -7,6 +7,7 @@
 [![Coverage Status](https://codecov.io/gh/fastverse/kit/graph/badge.svg)](https://codecov.io/github/fastverse/kit?branch=master)
 [![downloads](https://cranlogs.r-pkg.org/badges/kit)](https://www.r-pkg.org/pkg/kit)
 [![kit status badge](https://fastverse.r-universe.dev/badges/kit)](https://fastverse.r-universe.dev)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/fastverse/kit)
 
 Fast data manipulation functions implemented in C for large datasets. Provides vectorized alternatives to base R functions with significant performance improvements.
 
