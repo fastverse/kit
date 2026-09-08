@@ -65,22 +65,19 @@ shmName = function(map_name) sub("^/*", "/", map_name)
 
 shareData = function(data, map_name, verbose=FALSE) {
   conn = rawConnection(raw(0L), "w")
+  on.exit(close(conn), add = TRUE)
   serialize(data, conn)
-  seek(conn, 0L)
   map_name = shmName(map_name)
-  x = .Call(
+  .Call(
     "CcreateMappingObjectR", map_name, paste0(map_name,"_key"),
     rawConnectionValue(conn), verbose
   )
-  close(conn)
-  x
 }
 
 getData = function(map_name, verbose=FALSE) {
   map_name = shmName(map_name)
   output = .Call("CgetMappingObjectR", map_name, paste0(map_name,"_key"), verbose)
   conn = rawConnection(output,"r")
-  obj = unserialize(conn)
-  close(conn)
-  obj
+  on.exit(close(conn), add = TRUE)
+  unserialize(conn)
 }

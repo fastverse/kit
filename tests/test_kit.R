@@ -1766,10 +1766,33 @@ x = tryCatch(shareData(mtcars,"share1"), error=function(err) {
 
 if (!is.null(x)) {
   check("0022.001", getData("share1"), mtcars)
-  check("0022.002", clearData(x), TRUE)
+  # Reads are non-destructive (issue #43): repeated gets must all succeed
+  check("0022.002", getData("share1"), mtcars)
+  check("0022.003", getData("share1"), mtcars)
+  check("0022.004", clearData(x), TRUE)
+  # After owner clears, readers must fail
+  check("0022.005", tryCatch({getData("share1"); "unexpected-ok"}, error=function(e) "expected-error"), "expected-error")
+  # Clearing twice returns FALSE
+  check("0022.006", clearData(x), FALSE)
 }
 
 rm(x)
+
+# Re-sharing the same name with a different payload size must work
+x = tryCatch(shareData(1:10, "share-resize"), error=function(err) {
+  cat("Skipping shareData resize tests:", conditionMessage(err), "\n")
+  NULL
+})
+
+if (!is.null(x)) {
+  check("0022.007", getData("share-resize"), 1:10)
+  check("0022.008", clearData(x), TRUE)
+  rm(x)
+  x = shareData(1:1000, "share-resize")
+  check("0022.009", getData("share-resize"), 1:1000)
+  check("0022.010", getData("share-resize"), 1:1000)
+  check("0022.011", clearData(x), TRUE)
+}
 
 # --------------------------------------------------------------------------------------------------
 #                                   pcountNA
