@@ -73,7 +73,7 @@ reference:
   desc: "Find a matrix position inside a larger matrix and share data between R sessions."
 - contents:
   - fpos
-  - shareData/getData/clearData
+  - shareData/getData/clearData/clearShared
 
 articles:
 - title: "Introduction to kit"

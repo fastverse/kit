@@ -1,9 +1,21 @@
 # Function calls
+checkMapName = function(map_name) {
+  if (!is.character(map_name) || length(map_name) != 1L || is.na(map_name) || !nzchar(map_name))
+    stop("Argument 'map_name' must be a non-empty string of length 1.")
+  shmName(map_name)
+}
+
+checkVerbose = function(verbose) {
+  if (!is.logical(verbose) || length(verbose) != 1L || is.na(verbose))
+    stop("Argument 'verbose' must be TRUE or FALSE.")
+  verbose
+}
+
 charToFact  = function(x, decreasing=FALSE, addNA=TRUE, nThread=getOption("kit.nThread")) .Call(CcharToFactR, x, decreasing, nThread, NA, parent.frame(), addNA)
-clearData   = function(x, verbose=FALSE) .Call("CclearMappingObjectR", x, verbose)
+clearData   = function(x, verbose=FALSE) .Call("CclearMappingObjectR", x, checkVerbose(verbose))
 clearShared = function(map_name, verbose=FALSE) {
-  map_name = shmName(map_name)
-  .Call("CunlinkMappingObjectR", map_name, paste0(map_name,"_key"), verbose)
+  map_name = checkMapName(map_name)
+  .Call("CunlinkMappingObjectR", map_name, paste0(map_name,"_key"), checkVerbose(verbose))
 }
 count       = function(x, value) .Call(CcountR, x, value)
 countNA     = function(x) .Call(CcountNAR, x)
@@ -68,10 +80,11 @@ psort = function(x, decreasing = FALSE, na.last = NA, nThread=getOption("kit.nTh
 shmName = function(map_name) sub("^/*", "/", map_name)
 
 shareData = function(data, map_name, verbose=FALSE) {
+  map_name = checkMapName(map_name)
+  verbose = checkVerbose(verbose)
   conn = rawConnection(raw(0L), "w")
   on.exit(close(conn), add = TRUE)
   serialize(data, conn)
-  map_name = shmName(map_name)
   .Call(
     "CcreateMappingObjectR", map_name, paste0(map_name,"_key"),
     rawConnectionValue(conn), verbose
@@ -79,7 +92,8 @@ shareData = function(data, map_name, verbose=FALSE) {
 }
 
 getData = function(map_name, verbose=FALSE) {
-  map_name = shmName(map_name)
+  map_name = checkMapName(map_name)
+  verbose = checkVerbose(verbose)
   output = .Call("CgetMappingObjectR", map_name, paste0(map_name,"_key"), verbose)
   conn = rawConnection(output,"r")
   on.exit(close(conn), add = TRUE)

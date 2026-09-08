@@ -27,10 +27,10 @@ static const R_CallMethodDef CallEntries[] = {
   {"CsetlevelsR",              (DL_FUNC) &setlevelsR,              -1},
   {"CtopnR",                   (DL_FUNC) &topnR,                   -1},
   {"CvswitchR",                (DL_FUNC) &vswitchR,                -1},
-  {"CcreateMappingObjectR",    (DL_FUNC) &createMappingObjectR,    -1},
-  {"CgetMappingObjectR",       (DL_FUNC) &getMappingObjectR,       -1},
-  {"CunlinkMappingObjectR",    (DL_FUNC) &unlinkMappingObjectR,    -1},
-  {"CclearMappingObjectR",     (DL_FUNC) &clearMappingObjectR,     -1},
+  {"CcreateMappingObjectR",    (DL_FUNC) &createMappingObjectR,    4},
+  {"CgetMappingObjectR",       (DL_FUNC) &getMappingObjectR,       3},
+  {"CunlinkMappingObjectR",    (DL_FUNC) &unlinkMappingObjectR,    3},
+  {"CclearMappingObjectR",     (DL_FUNC) &clearMappingObjectR,     2},
   {NULL,                       NULL,                               -1}
 };
 

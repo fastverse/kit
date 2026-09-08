@@ -1760,6 +1760,13 @@ rm(x1)
 #                                   shareData
 # --------------------------------------------------------------------------------------------------
 
+# Reap leftovers from a previous crashed run so fixed shm names stay hermetic
+# (POSIX shm survives crashes; on Windows clearShared is a harmless no-op).
+invisible(tryCatch(clearShared("share1"), error=function(e) FALSE))
+invisible(tryCatch(clearShared("share-resize"), error=function(e) FALSE))
+invisible(tryCatch(clearShared("share-orphan"), error=function(e) FALSE))
+invisible(tryCatch(clearShared("share-noclear"), error=function(e) FALSE))
+
 x = tryCatch(shareData(mtcars,"share1"), error=function(err) {
   cat("Skipping shareData tests:", conditionMessage(err), "\n")
   NULL
@@ -1780,6 +1787,8 @@ if (!is.null(x)) {
 rm(x)
 
 # Re-sharing the same name with a different payload size must work
+# (cleared between shares so it also holds on Windows, where a live
+# mapping cannot grow).
 x = tryCatch(shareData(1:10, "share-resize"), error=function(err) {
   cat("Skipping shareData resize tests:", conditionMessage(err), "\n")
   NULL
@@ -1793,9 +1802,20 @@ if (!is.null(x)) {
   check("0022.009", getData("share-resize"), 1:1000)
   check("0022.010", getData("share-resize"), 1:1000)
   check("0022.011", clearData(x), TRUE)
+  rm(x)
 }
 
-rm(x)
+if (.Platform$OS.type != "windows") {
+  # POSIX only: re-sharing without clearing recreates on size change. The old
+  # handle is kept alive so its finalizer cannot unlink the new names early.
+  yo = shareData(1:5, "share-noclear")
+  yn = shareData(1:2000, "share-noclear")
+  check("0022.017", getData("share-noclear"), 1:2000)
+  check("0022.018", getData("share-noclear"), 1:2000)
+  check("0022.019", clearData(yn), TRUE)
+  check("0022.020", clearData(yo), TRUE)
+  rm(yo, yn)
+}
 
 # clearShared() reaps a live segment by name, without the owner handle
 x = tryCatch(shareData(mtcars, "share-orphan"), error=function(err) {
@@ -1804,11 +1824,21 @@ x = tryCatch(shareData(mtcars, "share-orphan"), error=function(err) {
 })
 
 if (!is.null(x)) {
-  check("0022.012", getData("share-orphan"), mtcars)
-  check("0022.013", clearShared("share-orphan"), TRUE)
-  check("0022.014", tryCatch({getData("share-orphan"); "unexpected-ok"}, error=function(e) "expected-error"), "expected-error")
-  check("0022.015", clearShared("share-orphan"), FALSE)
-  check("0022.016", clearData(x), TRUE)
+  if (.Platform$OS.type == "windows") {
+    # clearShared() is a documented no-op on Windows: nothing unlinked,
+    # reads keep working until the owner clears.
+    check("0022.012", getData("share-orphan"), mtcars)
+    check("0022.013", clearShared("share-orphan"), FALSE)
+    check("0022.014", getData("share-orphan"), mtcars)
+    check("0022.015", clearData(x), TRUE)
+    check("0022.016", clearShared("share-orphan"), FALSE)
+  } else {
+    check("0022.012", getData("share-orphan"), mtcars)
+    check("0022.013", clearShared("share-orphan"), TRUE)
+    check("0022.014", tryCatch({getData("share-orphan"); "unexpected-ok"}, error=function(e) "expected-error"), "expected-error")
+    check("0022.015", clearShared("share-orphan"), FALSE)
+    check("0022.016", clearData(x), TRUE)
+  }
 }
 
 rm(x)

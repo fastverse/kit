@@ -18,40 +18,73 @@
 
 #include "kit.h"
 #include <string.h>
+#include <stddef.h> // offsetof for the layout assertions below
 
 /*
- *  Metadata stored at offset 0 of the 256-byte length segment.
+ *  Metadata stored at offset 0 of the SHM_META_SIZE-byte length segment.
  *  `len` stays first so segments written by older versions (which stored
  *  only `len`) still read correctly; their `gen` bytes are zero (even = ready).
  *
  *  Single-writer (owner) / multi-reader seqlock: odd `gen` means a write is
- *  in progress. Concurrent misuse (read during write, re-share under active
- *  readers) fails loudly instead of silently corrupting. No mutexes, no
- *  dependencies. Correct use needs no lock: share() returns only after the
- *  payload is published, so readers starting afterwards never see odd `gen`.
+ *  in progress. Readers validate the header before AND after the payload
+ *  copy, so misuse fails loudly instead of silently corrupting. No mutexes,
+ *  no dependencies.
+ *
+ *  Contracts (also stated in ?shareData, enforced where cheap):
+ *  - exactly one writer publishes a name at a time; a second writer seeing
+ *    an odd generation fails loudly instead of interleaving payloads;
+ *  - readers may run concurrently with one writer and with each other;
+ *  - resizing a live name requires quiesced readers (same-size re-share is
+ *    always safe); the owner handle must outlive all readers.
+ *  Correct use needs no lock: share() returns only after the payload is
+ *  published, so readers starting afterwards never see odd `gen`.
+ *
+ *  `gen` is 32-bit so header loads/stores are single-copy-atomic even on
+ *  32-bit targets (mmap is page-aligned, hence naturally aligned).
  */
 
 #define SHM_META_SIZE 256
 
 struct SHM_META {
   size_t len;
-  uint64_t gen;
+  uint32_t gen;
 };
 
-static void shm_release_fence(void) {
-#ifdef WIN32
-  MemoryBarrier();
-#elif defined(__GNUC__) || defined(__clang__)
-  __atomic_thread_fence(__ATOMIC_RELEASE);
-#endif
-}
+// Layout guarantees: header fits the mapping, len stays first for back-compat.
+typedef char shm_meta_size_check[(sizeof(struct SHM_META) <= SHM_META_SIZE) ? 1 : -1];
+typedef char shm_meta_len_first_check[(offsetof(struct SHM_META, len) == 0) ? 1 : -1];
 
-static void shm_acquire_fence(void) {
-#ifdef WIN32
-  MemoryBarrier();
-#elif defined(__GNUC__) || defined(__clang__)
-  __atomic_thread_fence(__ATOMIC_ACQUIRE);
+// Ordered header access. Every R toolchain (GCC, Clang, mingw) provides
+// __atomic builtins; anything else falls back to plain accesses (still
+// correct on strongly-ordered CPUs; the generation check fails loudly
+// otherwise). The payload copy itself is never trusted, only validated.
+#if defined(__GNUC__) || defined(__clang__)
+static uint32_t shm_load_gen_acquire(const uint32_t *p) {
+  return __atomic_load_n(p, __ATOMIC_ACQUIRE);
+}
+static void shm_store_gen_release(uint32_t *p, uint32_t v) {
+  __atomic_store_n(p, v, __ATOMIC_RELEASE);
+}
+static size_t shm_load_len_acquire(const size_t *p) {
+  return __atomic_load_n(p, __ATOMIC_ACQUIRE);
+}
+static void shm_store_len_release(size_t *p, size_t v) {
+  __atomic_store_n(p, v, __ATOMIC_RELEASE);
+}
+#else
+#warning "ordered shared-memory access unavailable: seqlock ordering best-effort only"
+static uint32_t shm_load_gen_acquire(const uint32_t *p) { return *p; }
+static void shm_store_gen_release(uint32_t *p, uint32_t v) { *p = v; }
+static size_t shm_load_len_acquire(const size_t *p) { return *p; }
+static void shm_store_len_release(size_t *p, size_t v) { *p = v; }
 #endif
+
+// strdup without feature-test-macro dependence (strict-ISO safe).
+static char *shm_dup_string(const char *s) {
+  size_t n = strlen(s) + 1;
+  char *p = (char *) malloc(n);
+  if (p != NULL) memcpy(p, s, n);
+  return p;
 }
 
 /*
@@ -95,6 +128,10 @@ static void map_finalizer (SEXP ext) {
   if (ptr->lpMapLength != NULL) UnmapViewOfFile(ptr->lpMapLength);
   if (ptr->hMapLength != NULL && ptr->hMapLength != INVALID_HANDLE_VALUE) CloseHandle(ptr->hMapLength);
 #else
+  // fds are normally already closed (set to -1); close defensively in case a
+  // future path registers the finalizer while still holding descriptors.
+  if (ptr->fd_addr >= 0) close(ptr->fd_addr);
+  if (ptr->fd_length >= 0) close(ptr->fd_length);
   if (ptr->addr != NULL && ptr->addr != MAP_FAILED && ptr->STORAGE_SIZE > 0) {
     munmap(ptr->addr, ptr->STORAGE_SIZE);
   }
@@ -103,15 +140,15 @@ static void map_finalizer (SEXP ext) {
     free(ptr->STORAGE_ID);
   }
   if (ptr->length != NULL && ptr->length != MAP_FAILED) {
-    munmap(ptr->length, 256);
+    munmap(ptr->length, SHM_META_SIZE);
   }
   if (ptr->LENGTH_ID != NULL) {
     shm_unlink(ptr->LENGTH_ID);
     free(ptr->LENGTH_ID);
   }
 #endif
+  R_ClearExternalPtr(ext); // disarm first so GC re-entry is a safe no-op
   R_Free(ptr);
-  R_ClearExternalPtr(ext);
   if (verbose_finalizer) Rprintf("* Clear external pointer...OK\n");
 }
 
@@ -123,12 +160,22 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
   if (TYPEOF(MapObjectName) != STRSXP || LENGTH(MapObjectName) != 1) {
     error("Argument 'MapObjectName' must be of type character and length 1.");
   }
+  if (TYPEOF(MapLengthName) != STRSXP || LENGTH(MapLengthName) != 1) {
+    error("Argument 'MapLengthName' must be of type character and length 1.");
+  }
+  if (TYPEOF(DataObject) != RAWSXP) {
+    error("Argument 'DataObject' must be a raw vector.");
+  }
   if (!IS_BOOL(verboseArg)) {
     error("Argument 'verbose' must be TRUE or FALSE.");
   }
   const bool verbose = asLogical(verboseArg);
   verbose_finalizer = verbose;
-  const size_t len = LENGTH(DataObject);
+  const R_xlen_t xlen = XLENGTH(DataObject);
+  if (xlen < 0 || (uint64_t) xlen > (uint64_t) SIZE_MAX) {
+    error("* Data object is too large...ERROR");
+  }
+  const size_t len = (size_t) xlen;
   const size_t BUF_SIZE = len*sizeof(Rbyte);
   if (verbose) Rprintf("* Data object size: %zu\n",len*sizeof(Rbyte));
   if (verbose) Rprintf("* Start mapping object...OK\n");
@@ -157,8 +204,9 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
     UNPROTECT(1);
     error("* Data object is empty...ERROR");
   }
-  foo->hMapFile = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, BUF_SIZE, pMN);
-  foo->hMapLength = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, 256, pML);
+  foo->hMapFile = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE,
+                                       (DWORD) (BUF_SIZE >> 32), (DWORD) (BUF_SIZE & 0xFFFFFFFFu), pMN);
+  foo->hMapLength = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, SHM_META_SIZE, pML);
   if (foo->hMapFile == NULL || foo->hMapFile == INVALID_HANDLE_VALUE ||
       foo->hMapLength == NULL || foo->hMapLength == INVALID_HANDLE_VALUE) {
     if (foo->hMapFile != NULL && foo->hMapFile != INVALID_HANDLE_VALUE) CloseHandle(foo->hMapFile);
@@ -170,7 +218,7 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
   }
   if (verbose) Rprintf("* Creating file maping...OK\n");
   foo->lpMapAddress = (LPCTSTR) MapViewOfFile (foo->hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, BUF_SIZE);
-  foo->lpMapLength = (LPCTSTR) MapViewOfFile (foo->hMapLength, FILE_MAP_ALL_ACCESS, 0, 0, 256);
+  foo->lpMapLength = (LPCTSTR) MapViewOfFile (foo->hMapLength, FILE_MAP_ALL_ACCESS, 0, 0, SHM_META_SIZE);
   if (foo->lpMapAddress == NULL || foo->lpMapLength == NULL) {
     if (foo->lpMapAddress != NULL) UnmapViewOfFile(foo->lpMapAddress);
     if (foo->lpMapLength != NULL) UnmapViewOfFile(foo->lpMapLength);
@@ -183,21 +231,30 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
   }
   if (verbose) Rprintf("* Map view file...OK\n");
   // Seqlock publish: mark writing, copy payload, then publish size + ready.
-  struct SHM_META *metaW = (struct SHM_META *) foo->lpMapLength;
-  uint64_t gW = metaW->gen;
-  if (gW & 1ULL) gW++; // recover from a torn previous write (e.g. crashed writer)
-  metaW->gen = gW + 1ULL; // odd: write in progress
-  shm_release_fence();
+  // Exactly one writer per name: an odd generation means another writer is
+  // mid-publish (or a previous one crashed) — fail loudly and recover with
+  // clearShared() instead of interleaving two payloads silently.
+  struct SHM_META *metaW = (struct SHM_META *) (void *) foo->lpMapLength;
+  uint32_t gW = shm_load_gen_acquire(&metaW->gen);
+  if (gW & 1u) {
+    UnmapViewOfFile(foo->lpMapAddress);
+    UnmapViewOfFile(foo->lpMapLength);
+    CloseHandle(foo->hMapFile);
+    CloseHandle(foo->hMapLength);
+    R_ClearExternalPtr(ext);
+    R_Free(foo);
+    UNPROTECT(1);
+    error("* Shared name is busy (concurrent writer?) — clearShared() to recover...ERROR");
+  }
+  shm_store_gen_release(&metaW->gen, gW + 1u); // odd: write in progress
   CopyMemory((LPVOID)foo->lpMapAddress, RAW(DataObject), BUF_SIZE);
-  shm_release_fence();
-  metaW->len = len;
-  shm_release_fence();
-  metaW->gen = gW + 2ULL; // even: ready
+  shm_store_len_release(&metaW->len, len);
+  shm_store_gen_release(&metaW->gen, gW + 2u); // even: ready
 #else
   const char *pMN = CHAR(STRING_PTR_RO(MapObjectName)[0]);
   const char *pML = CHAR(STRING_PTR_RO(MapLengthName)[0]);
-  foo->STORAGE_ID = strdup(pMN);
-  foo->LENGTH_ID = strdup(pML);
+  foo->STORAGE_ID = shm_dup_string(pMN);
+  foo->LENGTH_ID = shm_dup_string(pML);
   if (foo->STORAGE_ID == NULL || foo->LENGTH_ID == NULL) {
     if (foo->STORAGE_ID != NULL) free(foo->STORAGE_ID);
     if (foo->LENGTH_ID != NULL) free(foo->LENGTH_ID);
@@ -217,9 +274,11 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
   foo->fd_addr = shm_open(foo->STORAGE_ID, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
   foo->fd_length = shm_open(foo->LENGTH_ID, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
   if (foo->fd_addr == -1 || foo->fd_length == -1) {
-    Rprintf("shm_open error, errno(%d): %s\n", errno, strerror(errno));
+    int open_errno = errno;
+    Rprintf("shm_open error, errno(%d): %s\n", open_errno, strerror(open_errno));
     if (foo->fd_addr != -1) close(foo->fd_addr);
     if (foo->fd_length != -1) close(foo->fd_length);
+    // No unlink here: pre-existing names may belong to a live owner.
     free(foo->STORAGE_ID);
     free(foo->LENGTH_ID);
     R_ClearExternalPtr(ext);
@@ -234,8 +293,14 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
   // object, so the stale objects are unlinked and fresh (truncatable) ones are
   // created. In-flight readers of the old objects keep reading the old
   // payload; only new opens see the new one.
+  //
+  // Orphan discipline: only objects this call effectively created (empty/new)
+  // are unlinked again on later failures; pre-existing live objects are never
+  // unlinked by us. Recover leftovers with clearShared().
   struct stat st_addr, st_len;
   if (fstat(foo->fd_addr, &st_addr) == -1 || fstat(foo->fd_length, &st_len) == -1) {
+    int st_errno = errno;
+    Rprintf("stat error, errno(%d): %s\n", st_errno, strerror(st_errno));
     close(foo->fd_addr);
     close(foo->fd_length);
     free(foo->STORAGE_ID);
@@ -245,6 +310,8 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
     UNPROTECT(1);
     error("* Stat shared memory object...ERROR");
   }
+  bool fresh_addr = (st_addr.st_size == 0);
+  bool fresh_len = (st_len.st_size == 0);
   if (st_addr.st_size < 0 || (size_t) st_addr.st_size != BUF_SIZE ||
       st_len.st_size < 0 || (size_t) st_len.st_size != SHM_META_SIZE) {
     close(foo->fd_addr);
@@ -254,9 +321,11 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
     foo->fd_addr = shm_open(foo->STORAGE_ID, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     foo->fd_length = shm_open(foo->LENGTH_ID, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
     if (foo->fd_addr == -1 || foo->fd_length == -1) {
-      Rprintf("shm_open error, errno(%d): %s\n", errno, strerror(errno));
-      if (foo->fd_addr != -1) close(foo->fd_addr);
-      if (foo->fd_length != -1) close(foo->fd_length);
+      int reopen_errno = errno;
+      Rprintf("shm_open error, errno(%d): %s\n", reopen_errno, strerror(reopen_errno));
+      // Both names were just unlinked by us, so anything opened here is ours.
+      if (foo->fd_addr != -1) { close(foo->fd_addr); shm_unlink(foo->STORAGE_ID); }
+      if (foo->fd_length != -1) { close(foo->fd_length); shm_unlink(foo->LENGTH_ID); }
       free(foo->STORAGE_ID);
       free(foo->LENGTH_ID);
       R_ClearExternalPtr(ext);
@@ -264,10 +333,16 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
       UNPROTECT(1);
       error("* Recreating file mapping...ERROR");
     }
+    // Recreated objects are ours: unlink them again if sizing fails below.
+    fresh_addr = true;
+    fresh_len = true;
     if (ftruncate(foo->fd_addr, BUF_SIZE) == -1 || ftruncate(foo->fd_length, SHM_META_SIZE) == -1) {
-      Rprintf("ftruncate error, errno(%d): %s\n", errno, strerror(errno));
+      int ft_errno = errno;
+      Rprintf("ftruncate error, errno(%d): %s\n", ft_errno, strerror(ft_errno));
       close(foo->fd_addr);
       close(foo->fd_length);
+      shm_unlink(foo->STORAGE_ID);
+      shm_unlink(foo->LENGTH_ID);
       free(foo->STORAGE_ID);
       free(foo->LENGTH_ID);
       R_ClearExternalPtr(ext);
@@ -278,13 +353,16 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
   }
   if (verbose) Rprintf("* Extend shared memory object...OK\n");
   foo->addr = mmap(NULL, BUF_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, foo->fd_addr, 0);
-  foo->length = mmap(NULL, 256, PROT_READ | PROT_WRITE, MAP_SHARED, foo->fd_length, 0);
+  foo->length = mmap(NULL, SHM_META_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, foo->fd_length, 0);
   if (foo->addr == MAP_FAILED || foo->length == MAP_FAILED) {
-    if (foo->addr != MAP_FAILED) munmap(foo->addr, BUF_SIZE);
-    if (foo->length != MAP_FAILED) munmap(foo->length, 256);
+    int mm_errno = errno;
+    Rprintf("mmap error, errno(%d): %s\n", mm_errno, strerror(mm_errno));
+    if (foo->addr != MAP_FAILED && foo->addr != NULL) munmap(foo->addr, BUF_SIZE);
+    if (foo->length != MAP_FAILED && foo->length != NULL) munmap(foo->length, SHM_META_SIZE);
     close(foo->fd_addr);
     close(foo->fd_length);
-    // Do not unlink here: the name may be shared; owner cleanup happens via finalizer.
+    if (fresh_addr) shm_unlink(foo->STORAGE_ID);
+    if (fresh_len) shm_unlink(foo->LENGTH_ID);
     foo->addr = NULL;
     foo->length = NULL;
     free(foo->STORAGE_ID);
@@ -295,9 +373,17 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
     error("* Map view file...ERROR");
   }
   if (verbose) Rprintf("* Map view file...OK\n");
-  if (close(foo->fd_addr) == -1 || close(foo->fd_length) == -1) {
+  int cerr_addr = close(foo->fd_addr);
+  int cerr_len = close(foo->fd_length);
+  foo->fd_addr = -1;
+  foo->fd_length = -1;
+  if (cerr_addr == -1 || cerr_len == -1) {
+    int cl_errno = errno;
+    Rprintf("close error, errno(%d): %s\n", cl_errno, strerror(cl_errno));
     munmap(foo->addr, BUF_SIZE);
-    munmap(foo->length, 256);
+    munmap(foo->length, SHM_META_SIZE);
+    if (fresh_addr) shm_unlink(foo->STORAGE_ID);
+    if (fresh_len) shm_unlink(foo->LENGTH_ID);
     free(foo->STORAGE_ID);
     free(foo->LENGTH_ID);
     R_ClearExternalPtr(ext);
@@ -305,19 +391,27 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
     UNPROTECT(1);
     error("* Closing file descriptors...ERROR");
   }
-  foo->fd_addr = -1;
-  foo->fd_length = -1;
   // Seqlock publish: mark writing, copy payload, then publish size + ready.
+  // Exactly one writer per name: an odd generation means another writer is
+  // mid-publish (or a previous one crashed) — fail loudly and recover with
+  // clearShared() instead of interleaving two payloads silently. No unlink
+  // here: the names may belong to that live writer.
   struct SHM_META *meta = (struct SHM_META *) foo->length;
-  uint64_t g = meta->gen;
-  if (g & 1ULL) g++; // recover from a torn previous write (e.g. crashed writer)
-  meta->gen = g + 1ULL; // odd: write in progress
-  shm_release_fence();
+  uint32_t g = shm_load_gen_acquire(&meta->gen);
+  if (g & 1u) {
+    munmap(foo->addr, BUF_SIZE);
+    munmap(foo->length, SHM_META_SIZE);
+    free(foo->STORAGE_ID);
+    free(foo->LENGTH_ID);
+    R_ClearExternalPtr(ext);
+    R_Free(foo);
+    UNPROTECT(1);
+    error("* Shared name is busy (concurrent writer?) — clearShared() to recover...ERROR");
+  }
+  shm_store_gen_release(&meta->gen, g + 1u); // odd: write in progress
   memcpy(foo->addr, RAW(DataObject), BUF_SIZE);
-  shm_release_fence();
-  meta->len = len;
-  shm_release_fence();
-  meta->gen = g + 2ULL; // even: ready
+  shm_store_len_release(&meta->len, len);
+  shm_store_gen_release(&meta->gen, g + 2u); // even: ready
 #endif
   if (verbose) Rprintf("* Copy memory...OK\n");
   R_RegisterCFinalizerEx(ext, map_finalizer, TRUE);
@@ -334,6 +428,9 @@ SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg)
   if (TYPEOF(MapObjectName) != STRSXP || LENGTH(MapObjectName) != 1) {
     error("Argument 'MapObjectName' must be of type character and length 1.");
   }
+  if (TYPEOF(MapLengthName) != STRSXP || LENGTH(MapLengthName) != 1) {
+    error("Argument 'MapLengthName' must be of type character and length 1.");
+  }
   if (!IS_BOOL(verboseArg)) {
     error("Argument 'verbose' must be TRUE or FALSE.");
   }
@@ -348,52 +445,68 @@ SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg)
     if (hMapFile != NULL && hMapFile != INVALID_HANDLE_VALUE) CloseHandle(hMapFile);
     if (hMapLength != NULL && hMapLength != INVALID_HANDLE_VALUE) CloseHandle(hMapLength);
 #else
+  // Open the header first, then the payload: with the writer's
+  // unlink(data)-then-unlink(meta) / create(data)-then-create(meta) order,
+  // every outcome is then a consistent (old,old)/(new,new) pair or a clean
+  // ENOENT — a stale-payload/new-header mix is unreachable (see below).
   const char *pMN = CHAR(STRING_PTR_RO(MapObjectName)[0]);
   const char *pML = CHAR(STRING_PTR_RO(MapLengthName)[0]);
-  int fd_addr = shm_open(pMN, O_RDONLY, S_IRUSR | S_IWUSR);
-  int fd_length = shm_open(pML, O_RDONLY, S_IRUSR | S_IWUSR);
-  if (fd_addr == -1 || fd_length == -1) {
-    if (fd_addr != -1) close(fd_addr);
+  int fd_length = shm_open(pML, O_RDONLY);
+  int fd_addr = shm_open(pMN, O_RDONLY);
+  if (fd_length == -1 || fd_addr == -1) {
     if (fd_length != -1) close(fd_length);
+    if (fd_addr != -1) close(fd_addr);
 #endif
     error("* Creating file mapping...ERROR");
   }
   if (verbose) Rprintf("* Creating file maping...OK\n");
   size_t len_a = 0;
+#ifndef WIN32
   size_t map_len = 0;
-  uint64_t gen_a = 0;
+#endif
+  uint32_t gen_a = 0;
 #ifdef WIN32
   LPCTSTR lpMapLength = (LPCTSTR) MapViewOfFile (hMapLength, FILE_MAP_ALL_ACCESS, 0, 0, SHM_META_SIZE);
   if (lpMapLength == NULL) {
     CloseHandle(hMapFile);
     CloseHandle(hMapLength);
 #else
-  void *length = mmap(NULL, SHM_META_SIZE, PROT_READ, MAP_SHARED, fd_length, 0);
-  if (length == MAP_FAILED) {
-    close(fd_addr);
+  // The length object must already hold a full header: a writer that crashed
+  // between shm_open and ftruncate leaves size 0, whose mapping would SIGBUS
+  // on dereference below.
+  struct stat st_len0;
+  if (fstat(fd_length, &st_len0) == -1 ||
+      st_len0.st_size < (off_t) sizeof(struct SHM_META)) {
     close(fd_length);
-#endif
+    close(fd_addr);
     error("* Map view file (length)...ERROR");
   }
+  void *length = mmap(NULL, SHM_META_SIZE, PROT_READ, MAP_SHARED, fd_length, 0);
+  if (length == MAP_FAILED) {
+    close(fd_length);
+    close(fd_addr);
+    error("* Map view file (length)...ERROR");
+  }
+#endif
   if (verbose) Rprintf("* Map view file (length)...OK\n");
   // Seqlock: observe the header before the payload copy. An odd generation
   // means a writer is mid-publish, so fail fast instead of reading torn data.
+  // Generation is loaded first: the writer publishes len before the final
+  // generation bump, so gen-first narrows the retry window.
   struct SHM_META *metaR = NULL;
 #ifdef WIN32
-  metaR = (struct SHM_META *) lpMapLength;
-  len_a = metaR->len;
-  gen_a = metaR->gen;
-  shm_acquire_fence();
-  if (gen_a & 1ULL) {
+  metaR = (struct SHM_META *) (void *) lpMapLength;
+  gen_a = shm_load_gen_acquire(&metaR->gen);
+  len_a = shm_load_len_acquire(&metaR->len);
+  if (gen_a & 1u) {
     UnmapViewOfFile(lpMapLength);
     CloseHandle(hMapFile);
     CloseHandle(hMapLength);
 #else
   metaR = (struct SHM_META *) length;
-  len_a = metaR->len;
-  gen_a = metaR->gen;
-  shm_acquire_fence();
-  if (gen_a & 1ULL) {
+  gen_a = shm_load_gen_acquire(&metaR->gen);
+  len_a = shm_load_len_acquire(&metaR->len);
+  if (gen_a & 1u) {
     munmap(length, SHM_META_SIZE);
     close(fd_addr);
     close(fd_length);
@@ -424,6 +537,14 @@ SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg)
     error("* Map view file (address)...ERROR");
   }
   if ((size_t) addrstat.st_size < map_len) map_len = (size_t) addrstat.st_size;
+  // Fail fast when the clamp already proves a concurrent size change: this
+  // also avoids attempting a huge allocation for a garbage/torn length.
+  if (map_len != len_a*sizeof(Rbyte)) {
+    munmap(length, SHM_META_SIZE);
+    close(fd_addr);
+    close(fd_length);
+    error("* Shared data changed during read, please retry...ERROR");
+  }
   // fd_length stays open: the header is re-read after the copy to validate.
   if (munmap(length, SHM_META_SIZE) == -1) {
     close(fd_addr);
@@ -462,11 +583,11 @@ SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg)
   if (verbose) Rprintf("* Copy map memory...OK\n");
 
 #ifdef WIN32
-  // Seqlock revalidation: the header must be unchanged since the pre-copy read.
-  shm_acquire_fence();
-  size_t len_b = metaR->len;
-  uint64_t gen_b = metaR->gen;
-  bool torn_win = ((gen_a != gen_b) || (gen_a & 1ULL) || (len_a != len_b));
+  // Seqlock revalidation: the header must be unchanged since the pre-copy
+  // read. Acquire loads are ordered after the payload copy above.
+  uint32_t gen_b = shm_load_gen_acquire(&metaR->gen);
+  size_t len_b = shm_load_len_acquire(&metaR->len);
+  bool torn_win = ((gen_a != gen_b) || (gen_b & 1u) || (len_a != len_b));
   if (!UnmapViewOfFile(lpMapLength)) {
     UnmapViewOfFile(lpMapAddress);
     CloseHandle(hMapFile);
@@ -517,10 +638,9 @@ SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg)
     error("* Map view file (length)...ERROR");
   }
   struct SHM_META *metaR2 = (struct SHM_META *) length2;
-  size_t len_b = metaR2->len;
-  uint64_t gen_b = metaR2->gen;
-  shm_acquire_fence();
-  bool torn_posix = ((gen_a != gen_b) || (gen_a & 1ULL) || (len_a != len_b) ||
+  uint32_t gen_b = shm_load_gen_acquire(&metaR2->gen);
+  size_t len_b = shm_load_len_acquire(&metaR2->len);
+  bool torn_posix = ((gen_a != gen_b) || (gen_b & 1u) || (len_a != len_b) ||
                      (map_len != len_a*sizeof(Rbyte)));
   if (munmap(length2, SHM_META_SIZE) == -1) {
     close(fd_length);
@@ -548,6 +668,9 @@ SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg)
 SEXP unlinkMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg) {
   if (TYPEOF(MapObjectName) != STRSXP || LENGTH(MapObjectName) != 1) {
     error("Argument 'MapObjectName' must be of type character and length 1.");
+  }
+  if (TYPEOF(MapLengthName) != STRSXP || LENGTH(MapLengthName) != 1) {
+    error("Argument 'MapLengthName' must be of type character and length 1.");
   }
   if (!IS_BOOL(verboseArg)) {
     error("Argument 'verbose' must be TRUE or FALSE.");
@@ -588,6 +711,9 @@ SEXP unlinkMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseA
  */
 
 SEXP clearMappingObjectR  (SEXP ext, SEXP verboseArg) {
+  if (TYPEOF(ext) != EXTPTRSXP) {
+    error("Argument 'x' must be an external pointer like the one returned by shareData().");
+  }
   if (!IS_BOOL(verboseArg)) {
     error("Argument 'verbose' must be TRUE or FALSE.");
   }
