@@ -80,12 +80,15 @@ static void shm_store_len_release(size_t *p, size_t v) { *p = v; }
 #endif
 
 // strdup without feature-test-macro dependence (strict-ISO safe).
+// POSIX-only helper (the Windows branch keeps no name copies).
+#ifndef WIN32
 static char *shm_dup_string(const char *s) {
   size_t n = strlen(s) + 1;
   char *p = (char *) malloc(n);
   if (p != NULL) memcpy(p, s, n);
   return p;
 }
+#endif
 
 /*
  *  Structure to hold Length and Address 
@@ -451,8 +454,10 @@ SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg)
   // ENOENT — a stale-payload/new-header mix is unreachable (see below).
   const char *pMN = CHAR(STRING_PTR_RO(MapObjectName)[0]);
   const char *pML = CHAR(STRING_PTR_RO(MapLengthName)[0]);
-  int fd_length = shm_open(pML, O_RDONLY);
-  int fd_addr = shm_open(pMN, O_RDONLY);
+  // NOTE: the mode argument is required even without O_CREAT: glibc
+  // declares shm_open() with three parameters (macOS tolerates two).
+  int fd_length = shm_open(pML, O_RDONLY, S_IRUSR | S_IWUSR);
+  int fd_addr = shm_open(pMN, O_RDONLY, S_IRUSR | S_IWUSR);
   if (fd_length == -1 || fd_addr == -1) {
     if (fd_length != -1) close(fd_length);
     if (fd_addr != -1) close(fd_addr);
@@ -485,9 +490,9 @@ SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg)
   if (length == MAP_FAILED) {
     close(fd_length);
     close(fd_addr);
+#endif
     error("* Map view file (length)...ERROR");
   }
-#endif
   if (verbose) Rprintf("* Map view file (length)...OK\n");
   // Seqlock: observe the header before the payload copy. An odd generation
   // means a writer is mid-publish, so fail fast instead of reading torn data.
