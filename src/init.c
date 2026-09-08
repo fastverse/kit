@@ -29,6 +29,7 @@ static const R_CallMethodDef CallEntries[] = {
   {"CvswitchR",                (DL_FUNC) &vswitchR,                -1},
   {"CcreateMappingObjectR",    (DL_FUNC) &createMappingObjectR,    -1},
   {"CgetMappingObjectR",       (DL_FUNC) &getMappingObjectR,       -1},
+  {"CunlinkMappingObjectR",    (DL_FUNC) &unlinkMappingObjectR,    -1},
   {"CclearMappingObjectR",     (DL_FUNC) &clearMappingObjectR,     -1},
   {NULL,                       NULL,                               -1}
 };
@@ -63,5 +64,6 @@ void R_init_kit(DllInfo *dll) {
   R_RegisterCCallable("kit", "CvswitchR",                (DL_FUNC) &vswitchR);
   R_RegisterCCallable("kit", "CcreateMappingObjectR",    (DL_FUNC) &createMappingObjectR);
   R_RegisterCCallable("kit", "CgetMappingObjectR",       (DL_FUNC) &getMappingObjectR);
+  R_RegisterCCallable("kit", "CunlinkMappingObjectR",    (DL_FUNC) &unlinkMappingObjectR);
   R_RegisterCCallable("kit", "CclearMappingObjectR",     (DL_FUNC) &clearMappingObjectR);
 }

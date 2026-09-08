@@ -117,6 +117,7 @@ extern SEXP vswitchR(SEXP x, SEXP values, SEXP outputs, SEXP na, SEXP nthreads, 
 
 extern SEXP createMappingObjectR(SEXP MapName, SEXP MapLength, SEXP DataObject, SEXP verboseArg);
 extern SEXP getMappingObjectR(SEXP MapName, SEXP MapLength, SEXP verboseArg);
+extern SEXP unlinkMappingObjectR(SEXP MapName, SEXP MapLength, SEXP verboseArg);
 extern SEXP clearMappingObjectR(SEXP ext, SEXP verboseArg);
 
 union uno { double d; unsigned int u[2]; };

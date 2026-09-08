@@ -1,7 +1,8 @@
-\name{shareData/getData/clearData}
+\name{shareData/getData/clearData/clearShared}
 \alias{shareData}
 \alias{getData}
 \alias{clearData}
+\alias{clearShared}
 \title{ Share Data between R Sessions}
 \description{
 Experimental functions that enable the user to share a R object between 2 \R sessions.
@@ -10,23 +11,27 @@ The object is serialized once by \code{shareData} into POSIX shared memory
 current session and/or from other processes running as the same user, via
 \code{getData}. Reads are non-destructive: the segment lives until the owner
 handle returned by \code{shareData} is cleared with \code{clearData} (or
-garbage collected). Keep the owner object alive while readers are active.
+garbage collected). Keep the owner object alive while readers are active,
+e.g. with \code{on.exit(clearData(x))}, and clear only after all readers
+(including background workers) are done.
 }
 \usage{
 shareData(data, map_name, verbose=FALSE)
 getData(map_name, verbose=FALSE)
 clearData(x, verbose=FALSE)
+clearShared(map_name, verbose=FALSE)
 }
 \arguments{
   \item{data}{ A \R object like a vector or a \code{data.frame}.}
-  \item{map_name}{ A character. A name for the memory map location where to store the data.}
+  \item{map_name}{ A character. A name for the memory map location where to store the data. Concurrent writers must use unique names: re-sharing a name while readers are active fails those reads loudly instead of returning mixed data.}
   \item{x}{ An external pointer like the one returned by function \code{shareData}.}
   \item{verbose}{ A logical value \code{TRUE} or \code{FALSE} to provide or not information to the user.}
 }
 \value{
 \code{shareData} returns a external pointer.
-\code{getData} returns an \R object stored in the memory location \code{map_name}. Reads do not consume the segment, so \code{getData} may be called repeatedly and from multiple processes.
+\code{getData} returns an \R object stored in the memory location \code{map_name}. Reads do not consume the segment, so \code{getData} may be called repeatedly and from multiple processes. A read racing a concurrent write errors (\code{please retry}) instead of returning torn data.
 \code{clearData} returns \code{TRUE} or \code{FALSE} depending on whether the data have been cleared in memory.
+\code{clearShared} unlinks a segment by name, without needing the owner handle, and returns \code{TRUE} if anything was removed. Use it to reap orphaned segments (e.g. after a crashed session); on Windows it is a harmless no-op because mappings vanish with the last open handle.
 }
 \author{Morgan Jacob}
 \examples{
@@ -46,4 +51,7 @@ clearData(x, verbose=FALSE)
 # > # mirai::daemons(4)
 # > # mirai::mirai_map(ids, function(i) fun(i, kit::getData("/mydata")))
 # > # mirai::daemons(0); clearData(x)
+#
+# Reap a leftover segment by name (POSIX shared memory survives crashes):
+# > clearShared("/mydata")
 }

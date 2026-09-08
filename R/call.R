@@ -1,6 +1,10 @@
 # Function calls
 charToFact  = function(x, decreasing=FALSE, addNA=TRUE, nThread=getOption("kit.nThread")) .Call(CcharToFactR, x, decreasing, nThread, NA, parent.frame(), addNA)
 clearData   = function(x, verbose=FALSE) .Call("CclearMappingObjectR", x, verbose)
+clearShared = function(map_name, verbose=FALSE) {
+  map_name = shmName(map_name)
+  .Call("CunlinkMappingObjectR", map_name, paste0(map_name,"_key"), verbose)
+}
 count       = function(x, value) .Call(CcountR, x, value)
 countNA     = function(x) .Call(CcountNAR, x)
 countOccur  = function(x) .Call(CcountOccurR, x)

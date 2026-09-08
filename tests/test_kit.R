@@ -68,6 +68,7 @@ charToFact  = kit::charToFact
 shareData   = kit::shareData
 getData     = kit::getData
 clearData   = kit::clearData
+clearShared = kit::clearShared
 
 # --------------------------------------------------------------------------------------------------
 #                                   topn 
@@ -1794,6 +1795,24 @@ if (!is.null(x)) {
   check("0022.011", clearData(x), TRUE)
 }
 
+rm(x)
+
+# clearShared() reaps a live segment by name, without the owner handle
+x = tryCatch(shareData(mtcars, "share-orphan"), error=function(err) {
+  cat("Skipping clearShared tests:", conditionMessage(err), "\n")
+  NULL
+})
+
+if (!is.null(x)) {
+  check("0022.012", getData("share-orphan"), mtcars)
+  check("0022.013", clearShared("share-orphan"), TRUE)
+  check("0022.014", tryCatch({getData("share-orphan"); "unexpected-ok"}, error=function(e) "expected-error"), "expected-error")
+  check("0022.015", clearShared("share-orphan"), FALSE)
+  check("0022.016", clearData(x), TRUE)
+}
+
+rm(x)
+
 # --------------------------------------------------------------------------------------------------
 #                                   pcountNA
 # --------------------------------------------------------------------------------------------------
@@ -1926,7 +1945,7 @@ rm(x, y, z, x1, y1, z1, base_pfirst, base_plast)
 # --------------------------------------------------------------------------------------------------
 
 rm(check,count,countNA,countOccur,fduplicated,fpos,funique,iif,nswitch,nif,pall,pany,pcount,pcountNA,
-   pmean,pprod,psum,setlevels,topn,uniqLen,vswitch,psort,charToFact,shareData,getData,clearData,
+   pmean,pprod,psum,setlevels,topn,uniqLen,vswitch,psort,charToFact,shareData,getData,clearData,clearShared,
    pallNA, pallv, panyv, panyNA, pfirst, plast, fpmax, fpmin, prange)
 
 # --------------------------------------------------------------------------------------------------
