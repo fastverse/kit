@@ -36,6 +36,10 @@
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="kit-development-version">kit (development version)<a class="anchor" aria-label="anchor" href="#kit-development-version"></a></h2>
 <div class="section level4">
+<h4 id="bug-fixes-development-version">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-development-version"></a></h4>
+<ul><li>Fix segfault in <code>vswitch</code>/<code>nswitch</code> on length-0 character input: the character encoding path dereferenced element 0 without checking length. The encoding check is now skipped for empty <code>x</code> and <code>isMixEnc</code>/<code>enc2UTF8</code> handle empty input safely, with no overhead on the fast path (<a href="https://github.com/fastverse/kit/issues/66" class="external-link">#66</a>).</li>
+</ul></div>
+<div class="section level4">
 <h4 id="notes-development-version">Notes<a class="anchor" aria-label="anchor" href="#notes-development-version"></a></h4>
 <ul><li><p>The test suite was migrated to tinytest: the legacy custom <code>check()</code> only printed failures without stopping, so regressions went unnoticed. Tests now fail loudly (1271 expectations) with zero additional dependencies.</p></li>
 <li><p>New test coverage for <code>fpmin</code>/<code>fpmax</code>/<code>prange</code> (<code>NA</code>/<code>NaN</code> + <code>na.rm</code>, <code>logical &lt; integer &lt; double</code> promotion, <code>prange</code> double-only rule, single list/<code>data.frame</code> path), <code>kit.nThread = 1</code> vs <code>2</code> determinism (<code>iif</code>/<code>vswitch</code>/<code>nswitch</code>/<code>charToFact</code>/<code>psort</code>), and mixed-encoding <code>checkEnc</code>, <code>funique</code> <code>data.table</code>/<code>tibble</code> attributes, <code>Date</code>/factor preservation and empty inputs (<a href="https://github.com/fastverse/kit/issues/63" class="external-link">#63</a>, tests-only, no C changes). Coverage now requires &gt; 90% via Codecov.</p></li>

@@ -2,6 +2,14 @@
 
 ## kit (development version)
 
+#### Bug Fixes
+
+- Fix segfault in `vswitch`/`nswitch` on length-0 character input: the
+  character encoding path dereferenced element 0 without checking
+  length. The encoding check is now skipped for empty `x` and
+  `isMixEnc`/`enc2UTF8` handle empty input safely, with no overhead on
+  the fast path ([\#66](https://github.com/fastverse/kit/issues/66)).
+
 #### Notes
 
 - The test suite was migrated to tinytest: the legacy custom `check()`
