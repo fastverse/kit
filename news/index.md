@@ -10,6 +10,12 @@
   `isMixEnc`/`enc2UTF8` handle empty input safely, with no overhead on
   the fast path ([\#66](https://github.com/fastverse/kit/issues/66)).
 
+- Fix `.onAttach`/`.onLoad` crash on bad `kit.nThread`
+  (`NULL`/`NA`/length != 1): the option is now sanitized to `1L`, the
+  default is restored via `is.null(getOption())`, and the startup
+  message only prints in interactive sessions
+  ([\#56](https://github.com/fastverse/kit/issues/56)).
+
 #### Notes
 
 - The test suite was migrated to tinytest: the legacy custom `check()`

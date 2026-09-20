@@ -3,7 +3,6 @@
 ``` r
 
 library(kit)
-#> Attaching kit 0.0.22 (OPENMP enabled using 1 thread)
 ```
 
 ## Overview

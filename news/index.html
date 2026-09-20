@@ -37,7 +37,8 @@
 <h2 class="pkg-version" data-toc-text="development version" id="kit-development-version">kit (development version)<a class="anchor" aria-label="anchor" href="#kit-development-version"></a></h2>
 <div class="section level4">
 <h4 id="bug-fixes-development-version">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-development-version"></a></h4>
-<ul><li>Fix segfault in <code>vswitch</code>/<code>nswitch</code> on length-0 character input: the character encoding path dereferenced element 0 without checking length. The encoding check is now skipped for empty <code>x</code> and <code>isMixEnc</code>/<code>enc2UTF8</code> handle empty input safely, with no overhead on the fast path (<a href="https://github.com/fastverse/kit/issues/66" class="external-link">#66</a>).</li>
+<ul><li><p>Fix segfault in <code>vswitch</code>/<code>nswitch</code> on length-0 character input: the character encoding path dereferenced element 0 without checking length. The encoding check is now skipped for empty <code>x</code> and <code>isMixEnc</code>/<code>enc2UTF8</code> handle empty input safely, with no overhead on the fast path (<a href="https://github.com/fastverse/kit/issues/66" class="external-link">#66</a>).</p></li>
+<li><p>Fix <code>.onAttach</code>/<code>.onLoad</code> crash on bad <code>kit.nThread</code> (<code>NULL</code>/<code>NA</code>/length != 1): the option is now sanitized to <code>1L</code>, the default is restored via <code>is.null(getOption())</code>, and the startup message only prints in interactive sessions (<a href="https://github.com/fastverse/kit/issues/56" class="external-link">#56</a>).</p></li>
 </ul></div>
 <div class="section level4">
 <h4 id="notes-development-version">Notes<a class="anchor" aria-label="anchor" href="#notes-development-version"></a></h4>
