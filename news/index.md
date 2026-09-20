@@ -16,6 +16,13 @@
   message only prints in interactive sessions
   ([\#56](https://github.com/fastverse/kit/issues/56)).
 
+- Fix `shareData`/`getData`/`clearData` input validation: bad `map_name`
+  (`""`/`NA`/length != 1/non-character) and `verbose`
+  (`NA`/non-logical/length != 1) now fail fast in R with a clear message
+  instead of reaching `shm_open` and its cryptic error; connections are
+  closed via `on.exit` even when `serialize`/`unserialize` fails
+  ([\#59](https://github.com/fastverse/kit/issues/59)).
+
 #### Notes
 
 - The test suite was migrated to tinytest: the legacy custom `check()`
