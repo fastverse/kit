@@ -2,10 +2,11 @@
 
 `iif` is a faster and more robust replacement of
 [`ifelse`](https://rdrr.io/r/base/ifelse.html). It is comparable to
-`dplyr::if_else`, `hutils::if_else` and `data.table::fifelse`. It
-returns a value with the same length as `test` filled with corresponding
-values from `yes`, `no` or eventually `na`, depending on `test`. It does
-not support S4 classes.
+`dplyr::if_else`, `hutils::if_else` and
+[`data.table::fifelse`](https://rdrr.io/pkg/data.table/man/fifelse.html).
+It returns a value with the same length as `test` filled with
+corresponding values from `yes`, `no` or eventually `na`, depending on
+`test`. It does not support S4 classes.
 
 ## Usage
 
@@ -56,11 +57,11 @@ are copied from `yes` to the output. This is useful when returning
 argument is set to `NA` in data.table::fifelse. Similarly to
 `dplyr::if_else` and when `tprom=FALSE`, `iif` requires same type for
 arguments `yes` and `no`. This is not strictly the case for
-`data.table::fifelse` which will coerce integer to double. When
-`tprom=TRUE`, `iif` behavior is similar to
-[`base::ifelse`](https://rdrr.io/r/base/ifelse.html) in the sense that
-it will promote or coerce `yes` and `no`to the "highest" used type.
-Note, however, that unlike
+[`data.table::fifelse`](https://rdrr.io/pkg/data.table/man/fifelse.html)
+which will coerce integer to double. When `tprom=TRUE`, `iif` behavior
+is similar to [`base::ifelse`](https://rdrr.io/r/base/ifelse.html) in
+the sense that it will promote or coerce `yes` and `no`to the "highest"
+used type. Note, however, that unlike
 [`base::ifelse`](https://rdrr.io/r/base/ifelse.html) attributes are
 still conserved.
 

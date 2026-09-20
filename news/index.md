@@ -9,6 +9,15 @@
   Tests now fail loudly (1271 expectations) with zero additional
   dependencies.
 
+- New test coverage for `fpmin`/`fpmax`/`prange` (`NA`/`NaN` + `na.rm`,
+  `logical < integer < double` promotion, `prange` double-only rule,
+  single list/`data.frame` path), `kit.nThread = 1` vs `2` determinism
+  (`iif`/`vswitch`/`nswitch`/`charToFact`/`psort`), and mixed-encoding
+  `checkEnc`, `funique` `data.table`/`tibble` attributes, `Date`/factor
+  preservation and empty inputs
+  ([\#63](https://github.com/fastverse/kit/issues/63), tests-only, no C
+  changes). Coverage now requires \> 90% via Codecov.
+
 ## kit 0.0.22 (2026-08-25)
 
 #### Bug Fixes

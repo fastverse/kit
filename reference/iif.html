@@ -35,7 +35,7 @@
     </div>
 
     <div class="ref-description section level2">
-    <p><code>iif</code> is a faster and more robust replacement of <code><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></code>. It is comparable to <code>dplyr::if_else</code>, <code>hutils::if_else</code> and <code>data.table::fifelse</code>. It returns a value with the same length as <code>test</code> filled with corresponding values from <code>yes</code>, <code>no</code> or eventually <code>na</code>, depending on <code>test</code>. It does not support S4 classes.</p>
+    <p><code>iif</code> is a faster and more robust replacement of <code><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></code>. It is comparable to <code>dplyr::if_else</code>, <code>hutils::if_else</code> and <code><a href="https://rdrr.io/pkg/data.table/man/fifelse.html" class="external-link">data.table::fifelse</a></code>. It returns a value with the same length as <code>test</code> filled with corresponding values from <code>yes</code>, <code>no</code> or eventually <code>na</code>, depending on <code>test</code>. It does not support S4 classes.</p>
     </div>
 
     <div class="section level2">
@@ -66,7 +66,7 @@
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>In contrast to <code><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">ifelse</a></code> attributes are copied from <code>yes</code> to the output. This is useful when returning <code>Date</code>, <code>factor</code> or other classes.
 Like <code>dplyr::if_else</code> and <code>hutils::if_else</code>, the <code>na</code> argument is by default set to <code>NULL</code>. This argument is set to <code>NA</code> in data.table::fifelse.
-Similarly to <code>dplyr::if_else</code> and when <code>tprom=FALSE</code>, <code>iif</code> requires same type for arguments <code>yes</code> and <code>no</code>. This is not strictly the case for <code>data.table::fifelse</code> which will coerce integer to double.
+Similarly to <code>dplyr::if_else</code> and when <code>tprom=FALSE</code>, <code>iif</code> requires same type for arguments <code>yes</code> and <code>no</code>. This is not strictly the case for <code><a href="https://rdrr.io/pkg/data.table/man/fifelse.html" class="external-link">data.table::fifelse</a></code> which will coerce integer to double.
 When <code>tprom=TRUE</code>, <code>iif</code> behavior is similar to <code><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">base::ifelse</a></code> in the sense that it will promote or coerce <code>yes</code> and <code>no</code>to the "highest" used type. Note, however, that unlike <code><a href="https://rdrr.io/r/base/ifelse.html" class="external-link">base::ifelse</a></code> attributes are still conserved.</p>
     </div>
     <div class="section level2">

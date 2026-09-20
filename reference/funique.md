@@ -3,7 +3,8 @@
 Similar to base R functions `duplicated` and `unique`, `fduplicated` and
 `funique` are slightly faster for vectors and much faster for
 `data.frame`. Function `uniqLen` is equivalent to base R
-`length(unique)` or `data.table::uniqueN`.
+`length(unique)` or
+[`data.table::uniqueN`](https://rdrr.io/pkg/data.table/man/duplicated.html).
 
 ## Usage
 

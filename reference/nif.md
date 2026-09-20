@@ -4,7 +4,8 @@
 Conceptually, `nif` is a nested version of
 [`iif`](https://fastverse.org/kit/reference/iif.md) (with smarter
 implementation than manual nesting). It is not the same but it is
-comparable to `dplyr::case_when` and `data.table::fcase`.
+comparable to `dplyr::case_when` and
+[`data.table::fcase`](https://rdrr.io/pkg/data.table/man/fcase.html).
 
 ## Usage
 
@@ -40,11 +41,13 @@ filled with the corresponding values (`value`) from `...`, or eventually
 
 ## Details
 
-Unlike `data.table::fcase`, the `default` argument is set to `NULL`. In
-addition, `nif` can be called by other packages at C level. Note that at
-C level, the function has an additional argument `SEXP md` which is
-either `TRUE` for lazy evaluation or `FALSE` for non lazy evaluation.
-This argument is not exposed to R users and is more for C users.
+Unlike
+[`data.table::fcase`](https://rdrr.io/pkg/data.table/man/fcase.html),
+the `default` argument is set to `NULL`. In addition, `nif` can be
+called by other packages at C level. Note that at C level, the function
+has an additional argument `SEXP md` which is either `TRUE` for lazy
+evaluation or `FALSE` for non lazy evaluation. This argument is not
+exposed to R users and is more for C users.
 
 ## See also
 

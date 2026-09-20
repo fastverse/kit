@@ -35,7 +35,7 @@
     </div>
 
     <div class="ref-description section level2">
-    <p><code>nif</code> is a fast implementation of SQL <code>CASE WHEN</code> statement for R. Conceptually, <code>nif</code> is a nested version of <code><a href="iif.html">iif</a></code> (with smarter implementation than manual nesting). It is not the same but it is comparable to <code>dplyr::case_when</code> and <code>data.table::fcase</code>.</p>
+    <p><code>nif</code> is a fast implementation of SQL <code>CASE WHEN</code> statement for R. Conceptually, <code>nif</code> is a nested version of <code><a href="iif.html">iif</a></code> (with smarter implementation than manual nesting). It is not the same but it is comparable to <code>dplyr::case_when</code> and <code><a href="https://rdrr.io/pkg/data.table/man/fcase.html" class="external-link">data.table::fcase</a></code>.</p>
     </div>
 
     <div class="section level2">
@@ -60,7 +60,7 @@
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
-    <p>Unlike <code>data.table::fcase</code>, the <code>default</code> argument is set to <code>NULL</code>. In addition, <code>nif</code> can be called by other packages at C level. Note that at C level, the function has an additional argument <code>SEXP md</code> which is either <code>TRUE</code> for lazy evaluation or <code>FALSE</code> for non lazy evaluation. This argument is not exposed to R users and is more for C users.</p>
+    <p>Unlike <code><a href="https://rdrr.io/pkg/data.table/man/fcase.html" class="external-link">data.table::fcase</a></code>, the <code>default</code> argument is set to <code>NULL</code>. In addition, <code>nif</code> can be called by other packages at C level. Note that at C level, the function has an additional argument <code>SEXP md</code> which is either <code>TRUE</code> for lazy evaluation or <code>FALSE</code> for non lazy evaluation. This argument is not exposed to R users and is more for C users.</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
