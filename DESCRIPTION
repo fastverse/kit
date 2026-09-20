@@ -4,17 +4,18 @@ Title: Data Manipulation Functions Implemented in C
 Version: 0.0.22
 Date: 2026-08-25
 Authors@R: c(person("Morgan", "Jacob", role = c("aut", "cph"), email = "morgan.emailbox@gmail.com"), 
-             person("Sebastian", "Krantz", role = c("ctb", "cre"), email = "sebastian.krantz@graduateinstitute.ch"))
-Author: Morgan Jacob [aut, cph], Sebastian Krantz [ctb, cre]
+             person("Sebastian", "Krantz", role = c("ctb", "cre"), email = "sebastian.krantz@graduateinstitute.ch"),
+             person("David", "Budzynski", role = c("ctb"), email = "david.budzynsky@gmail.com"))
+Author: Morgan Jacob [aut, cph], Sebastian Krantz [ctb, cre], David Budzynski [ctb]
 Maintainer: Sebastian Krantz <sebastian.krantz@graduateinstitute.ch>
 Description: Basic functions, implemented in C, for large data manipulation. Fast vectorised ifelse()/nested if()/switch() functions, psum()/pprod() functions equivalent to pmin()/pmax() plus others which are missing from base R. Most of these functions are callable at C level.
 URL: https://fastverse.org/kit/, https://github.com/fastverse/kit
 License: GPL-3
-Depends: R (>= 3.1.0)
+Depends: R (>= 3.5.0)
 Suggests: data.table, knitr, rmarkdown, tibble, tinytest
 VignetteBuilder: knitr
 Encoding: UTF-8
 BugReports: https://github.com/fastverse/kit/issues
 NeedsCompilation: yes
-ByteCompile: TRUE
-Repository: CRAN
+ByteCompile: yes
+Config/Needs/website: pkgdown

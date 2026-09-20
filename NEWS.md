@@ -10,6 +10,8 @@
 
 ### Notes
 
+- Clean up `DESCRIPTION` metadata: bump `Depends` to `R (>= 3.5.0)` to match the `DATAPTR_RO` fallback in `src/kit.h` (`...length()`, `R_RegisterCCallable`/`STRING_PTR_RO` need newer than 3.1), use `ByteCompile: yes` per WRE, drop `Repository: CRAN` from the dev tree, and add `Config/Needs/website: pkgdown` (`Suggests` already covers `data.table`/`tibble`/`tinytest` used in tests and vignette) (#58).
+
 - The test suite was migrated to tinytest: the legacy custom `check()` only printed failures without stopping, so regressions went unnoticed. Tests now fail loudly (1271 expectations) with zero additional dependencies.
 
 - New test coverage for `fpmin`/`fpmax`/`prange` (`NA`/`NaN` + `na.rm`, `logical < integer < double` promotion, `prange` double-only rule, single list/`data.frame` path), `kit.nThread = 1` vs `2` determinism (`iif`/`vswitch`/`nswitch`/`charToFact`/`psort`), and mixed-encoding `checkEnc`, `funique` `data.table`/`tibble` attributes, `Date`/factor preservation and empty inputs (#63, tests-only, no C changes). Coverage now requires > 90% via Codecov.
