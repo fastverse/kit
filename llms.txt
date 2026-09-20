@@ -20,6 +20,7 @@ performance improvements.
 ## Installation
 
 ``` r
+
 # From CRAN
 install.packages("kit")
 
@@ -42,6 +43,7 @@ frames:
 - **`pfirst`, `plast`**: First/last non-missing values
 
 ``` r
+
 x <- c(1, 3, NA, 5)
 y <- c(2, NA, 4, 1)
 psum(x, y, na.rm = TRUE)  # [1] 3 3 4 6
@@ -62,6 +64,7 @@ Fast vectorized conditional logic:
 - **`vswitch`, `nswitch`**: Vectorized switch statements
 
 ``` r
+
 iif(x > 2, x, x - 1)  # Preserves attributes unlike base::ifelse
 nif(x == 1, "one", x == 2, "two", default = "other")
 ```
@@ -72,6 +75,7 @@ nif(x == 1, "one", x == 2, "two", default = "other")
 - **`topn`**: Efficient partial sort (top N values) without full sorting
 
 ``` r
+
 topn(x, n = 6L, decreasing = TRUE)  # Much faster than order()[1:6]
 ```
 
@@ -87,6 +91,7 @@ topn(x, n = 6L, decreasing = TRUE)  # Much faster than order()[1:6]
 - **`count`, `countNA`, `countOccur`**: Count element occurrences
 
 ``` r
+
 funique(iris$Species)  # Faster than base::unique
 uniqLen(iris$Species)  # Faster than length(unique())
 ```
