@@ -104,6 +104,20 @@ static void releaseObject(struct OBJECT *ptr, bool unlink_addr, bool unlink_leng
   R_Free(ptr);
 }
 
+#ifdef WIN32
+static void releaseReadLength(HANDLE hMapFile, HANDLE hMapLength, LPCTSTR lpMapLength) {
+  if (lpMapLength != NULL) UnmapViewOfFile(lpMapLength);
+  if (hMapFile != NULL && hMapFile != INVALID_HANDLE_VALUE) CloseHandle(hMapFile);
+  if (hMapLength != NULL && hMapLength != INVALID_HANDLE_VALUE) CloseHandle(hMapLength);
+}
+#else
+static void releaseReadLength(int fd_addr, int fd_length, void *length) {
+  if (length != NULL && length != MAP_FAILED) munmap(length, 256);
+  if (fd_addr >= 0) close(fd_addr);
+  if (fd_length >= 0) close(fd_length);
+}
+#endif
+
 static void mapping_error(SEXP ext, struct OBJECT *ptr, bool unlink_addr,
                           bool unlink_length, const char *message) {
   R_ClearExternalPtr(ext);
@@ -214,14 +228,28 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
   if (fstat(foo->fd_addr, &mapstat) == -1) {
     mapping_error(ext, foo, created_addr, created_length, "* Inspect shared memory object...ERROR");
   }
-  if (mapstat.st_size == 0 && ftruncate(foo->fd_addr, BUF_SIZE) == -1) {
-    mapping_error(ext, foo, created_addr, created_length, "* Extend shared memory object (1)...ERROR");
+  if (mapstat.st_size < 0) {
+    mapping_error(ext, foo, created_addr, created_length, "* Invalid shared memory size...ERROR");
+  }
+  if (mapstat.st_size == 0) {
+    if (ftruncate(foo->fd_addr, BUF_SIZE) == -1) {
+      mapping_error(ext, foo, created_addr, created_length, "* Extend shared memory object (1)...ERROR");
+    }
+  } else if ((uintmax_t) mapstat.st_size < (uintmax_t) BUF_SIZE) {
+    mapping_error(ext, foo, created_addr, created_length, "* Shared memory object is too small...ERROR");
   }
   if (fstat(foo->fd_length, &mapstat) == -1) {
     mapping_error(ext, foo, created_addr, created_length, "* Inspect shared memory length...ERROR");
   }
-  if (mapstat.st_size == 0 && ftruncate(foo->fd_length, 256) == -1) {
-    mapping_error(ext, foo, created_addr, created_length, "* Extend shared memory object (2)...ERROR");
+  if (mapstat.st_size < 0) {
+    mapping_error(ext, foo, created_addr, created_length, "* Invalid shared memory length size...ERROR");
+  }
+  if (mapstat.st_size == 0) {
+    if (ftruncate(foo->fd_length, 256) == -1) {
+      mapping_error(ext, foo, created_addr, created_length, "* Extend shared memory object (2)...ERROR");
+    }
+  } else if ((uintmax_t) mapstat.st_size < 256u) {
+    mapping_error(ext, foo, created_addr, created_length, "* Shared memory length is too small...ERROR");
   }
   if (verbose) Rprintf("* Extend shared memory object...OK\n");
   foo->addr = mmap(NULL, BUF_SIZE, PROT_WRITE, MAP_SHARED, foo->fd_addr, 0);
@@ -268,12 +296,14 @@ SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg)
   HANDLE hMapFile = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, pMN);
   HANDLE hMapLength = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, pML);
   if (hMapFile == INVALID_HANDLE_VALUE || hMapLength == INVALID_HANDLE_VALUE) {
+    releaseReadLength(hMapFile, hMapLength, NULL);
 #else
   const char *pMN = CHAR(STRING_PTR_RO(MapObjectName)[0]);
   const char *pML = CHAR(STRING_PTR_RO(MapLengthName)[0]);
   int fd_addr = shm_open(pMN, O_RDONLY, S_IRUSR | S_IWUSR);
   int fd_length = shm_open(pML, O_RDONLY, S_IRUSR | S_IWUSR);
   if (fd_addr == -1 || fd_length == -1) {
+    releaseReadLength(fd_addr, fd_length, NULL);
 #endif
     Rf_error("* Creating file mapping...ERROR");
   }
@@ -281,31 +311,61 @@ SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg)
 #ifdef WIN32
   LPCTSTR lpMapLength = (LPCTSTR) MapViewOfFile (hMapLength, FILE_MAP_ALL_ACCESS, 0, 0, 256);
   if (lpMapLength == NULL) {
-    CloseHandle(hMapLength);
+    releaseReadLength(hMapFile, hMapLength, lpMapLength);
 #else
+  struct stat lengthstat;
+  if (fstat(fd_length, &lengthstat) == -1 || lengthstat.st_size < 256) {
+    releaseReadLength(fd_addr, fd_length, NULL);
+    Rf_error("* Invalid shared memory length size...ERROR");
+  }
   void *length = mmap(NULL, 256, PROT_READ, MAP_SHARED, fd_length, 0);
   if (length == MAP_FAILED) {
     shm_unlink(pML);
+    releaseReadLength(fd_addr, fd_length, length);
 #endif
     Rf_error("* Map view file (length)...ERROR");
   }
   if (verbose) Rprintf("* Map view file (length)...OK\n");
 #ifdef WIN32
   size_t len = *(size_t*)lpMapLength;
+  if (len == 0 || (uintmax_t) len > (uintmax_t) R_XLEN_T_MAX ||
+      (uintmax_t) len > (uintmax_t) (SIZE_MAX / sizeof(Rbyte))) {
+    releaseReadLength(hMapFile, hMapLength, lpMapLength);
+    Rf_error("* Invalid shared data length...ERROR");
+  }
   LPCTSTR lpMapAddress = (LPCTSTR) MapViewOfFile (hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, len*sizeof(Rbyte));
   if (lpMapAddress == NULL) {
-    CloseHandle(hMapFile);
+    releaseReadLength(hMapFile, hMapLength, lpMapLength);
+    Rf_error("* Map view file (address)...ERROR");
+  }
 #else
-  size_t len = *(size_t*)length;  
+  size_t len = *(size_t*)length;
+  if (len == 0 || (uintmax_t) len > (uintmax_t) R_XLEN_T_MAX ||
+      (uintmax_t) len > (uintmax_t) (SIZE_MAX / sizeof(Rbyte))) {
+    releaseReadLength(fd_addr, fd_length, length);
+    Rf_error("* Invalid shared data length...ERROR");
+  }
+  struct stat addrstat;
+  if (fstat(fd_addr, &addrstat) == -1 || addrstat.st_size < 0 ||
+      (uintmax_t) addrstat.st_size < (uintmax_t) len) {
+    releaseReadLength(fd_addr, fd_length, length);
+    Rf_error("* Shared data size is invalid...ERROR");
+  }
   void *addr = mmap(NULL, len*sizeof(Rbyte), PROT_READ, MAP_SHARED, fd_addr, 0);
   if (addr == MAP_FAILED) {
     shm_unlink(pMN);
-#endif
+    releaseReadLength(fd_addr, fd_length, length);
     Rf_error("* Map view file (address)...ERROR");
   }
+#endif
   if (verbose) Rprintf("* Map view file (address)...OK\n");
 #ifndef WIN32
-  if (close(fd_addr) == -1 || close(fd_length) == -1) {
+  int close_addr = close(fd_addr);
+  if (close_addr == 0) fd_addr = -1;
+  int close_length = close(fd_length);
+  if (close_length == 0) fd_length = -1;
+  if (close_addr == -1 || close_length == -1) {
+    releaseReadLength(fd_addr, fd_length, length);
     Rf_error("* Closing file descriptors...ERROR");
   }
 #endif
