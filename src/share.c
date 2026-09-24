@@ -18,6 +18,7 @@
 
 #include "kit.h"
 #include <string.h>
+#include <time.h>
 
 struct OBJECT {
 #ifdef WIN32
@@ -33,6 +34,10 @@ struct OBJECT {
   void *length;
   char *STORAGE_ID;
   char *LENGTH_ID;
+  bool own_addr;
+  bool own_length;
+  uint64_t token;
+  bool have_token;
 #endif
   bool verbose;
 };
@@ -65,6 +70,41 @@ static int openMap(const char *name, bool *created) {
 }
 #endif
 
+#ifndef WIN32
+#define TOKEN_OFFSET (sizeof(size_t))
+
+static uint64_t mapping_token_counter = 0;
+
+static uint64_t createMappingToken(void *address) {
+  uint64_t token = (uint64_t) (uintptr_t) address;
+  token ^= (uint64_t) getpid() << 32;
+  token ^= ++mapping_token_counter;
+  token ^= (uint64_t) time(NULL);
+  return token == 0 ? 1 : token;
+}
+
+static bool mappingTokenMatches(const char *name, uint64_t token) {
+  if (name == NULL) return false;
+  const int fd = shm_open(name, O_RDONLY, S_IRUSR | S_IWUSR);
+  if (fd == -1) return false;
+  struct stat status;
+  if (fstat(fd, &status) == -1 || status.st_size < (off_t) (TOKEN_OFFSET + sizeof(uint64_t))) {
+    close(fd);
+    return false;
+  }
+  void *mapping = mmap(NULL, 256, PROT_READ, MAP_SHARED, fd, 0);
+  if (mapping == MAP_FAILED) {
+    close(fd);
+    return false;
+  }
+  uint64_t current_token;
+  memcpy(&current_token, (const char *) mapping + TOKEN_OFFSET, sizeof(current_token));
+  munmap(mapping, 256);
+  close(fd);
+  return current_token == token;
+}
+#endif
+
 static void releaseObject(struct OBJECT *ptr, bool unlink_addr, bool unlink_length) {
 #ifdef WIN32
   (void) unlink_addr;
@@ -75,12 +115,19 @@ static void releaseObject(struct OBJECT *ptr, bool unlink_addr, bool unlink_leng
   if (ptr->hMapLength != NULL && ptr->hMapLength != INVALID_HANDLE_VALUE) CloseHandle(ptr->hMapLength);
 #else
   if (ptr->fd_addr >= 0) {
-    close(ptr->fd_addr);
+    const int fd_addr = ptr->fd_addr;
     ptr->fd_addr = -1;
+    close(fd_addr);
   }
   if (ptr->fd_length >= 0) {
-    close(ptr->fd_length);
+    const int fd_length = ptr->fd_length;
     ptr->fd_length = -1;
+    close(fd_length);
+  }
+  if ((unlink_addr || unlink_length) && ptr->have_token &&
+      !mappingTokenMatches(ptr->LENGTH_ID, ptr->token)) {
+    unlink_addr = false;
+    unlink_length = false;
   }
   if (ptr->addr != NULL && ptr->addr != MAP_FAILED && ptr->STORAGE_SIZE > 0) {
     munmap(ptr->addr, ptr->STORAGE_SIZE);
@@ -104,19 +151,123 @@ static void releaseObject(struct OBJECT *ptr, bool unlink_addr, bool unlink_leng
   R_Free(ptr);
 }
 
+struct READ_MAPPING {
 #ifdef WIN32
-static void releaseReadLength(HANDLE hMapFile, HANDLE hMapLength, LPCTSTR lpMapLength) {
-  if (lpMapLength != NULL) UnmapViewOfFile(lpMapLength);
-  if (hMapFile != NULL && hMapFile != INVALID_HANDLE_VALUE) CloseHandle(hMapFile);
-  if (hMapLength != NULL && hMapLength != INVALID_HANDLE_VALUE) CloseHandle(hMapLength);
-}
+  HANDLE hMapFile;
+  HANDLE hMapLength;
+  LPCTSTR lpMapAddress;
+  LPCTSTR lpMapLength;
 #else
-static void releaseReadLength(int fd_addr, int fd_length, void *length) {
-  if (length != NULL && length != MAP_FAILED) munmap(length, 256);
-  if (fd_addr >= 0) close(fd_addr);
-  if (fd_length >= 0) close(fd_length);
-}
+  int fd_addr;
+  int fd_length;
+  size_t addr_size;
+  void *addr;
+  void *length;
 #endif
+  const char *name_addr;
+  const char *name_length;
+  bool verbose;
+  bool unlink_names;
+  bool cleanup_failed;
+  SEXP ans;
+};
+
+static void initReadMapping(struct READ_MAPPING *state) {
+#ifdef WIN32
+  state->hMapFile = NULL;
+  state->hMapLength = NULL;
+  state->lpMapAddress = NULL;
+  state->lpMapLength = NULL;
+#else
+  state->fd_addr = -1;
+  state->fd_length = -1;
+  state->addr_size = 0;
+  state->addr = NULL;
+  state->length = NULL;
+#endif
+  state->name_addr = NULL;
+  state->name_length = NULL;
+  state->verbose = false;
+  state->unlink_names = false;
+  state->cleanup_failed = false;
+  state->ans = R_NilValue;
+}
+
+static void releaseReadMapping(struct READ_MAPPING *state, bool unlink_names) {
+#ifdef WIN32
+  (void) unlink_names;
+  if (state->lpMapAddress != NULL) {
+    if (!UnmapViewOfFile(state->lpMapAddress)) state->cleanup_failed = true;
+    state->lpMapAddress = NULL;
+  }
+  if (state->hMapFile != NULL && state->hMapFile != INVALID_HANDLE_VALUE) {
+    if (!CloseHandle(state->hMapFile)) state->cleanup_failed = true;
+    state->hMapFile = NULL;
+  }
+  if (state->lpMapLength != NULL) {
+    if (!UnmapViewOfFile(state->lpMapLength)) state->cleanup_failed = true;
+    state->lpMapLength = NULL;
+  }
+  if (state->hMapLength != NULL && state->hMapLength != INVALID_HANDLE_VALUE) {
+    if (!CloseHandle(state->hMapLength)) state->cleanup_failed = true;
+    state->hMapLength = NULL;
+  }
+#else
+  if (state->addr != NULL && state->addr != MAP_FAILED && state->addr_size > 0) {
+    if (munmap(state->addr, state->addr_size) == -1) state->cleanup_failed = true;
+    state->addr = NULL;
+  }
+  if (state->length != NULL && state->length != MAP_FAILED) {
+    if (munmap(state->length, 256) == -1) state->cleanup_failed = true;
+    state->length = NULL;
+  }
+  if (state->fd_addr >= 0) {
+    const int fd_addr = state->fd_addr;
+    state->fd_addr = -1;
+    if (close(fd_addr) == -1) state->cleanup_failed = true;
+  }
+  if (state->fd_length >= 0) {
+    const int fd_length = state->fd_length;
+    state->fd_length = -1;
+    if (close(fd_length) == -1) state->cleanup_failed = true;
+  }
+  if (unlink_names) {
+    if (state->name_addr != NULL) {
+      if (shm_unlink(state->name_addr) == -1) state->cleanup_failed = true;
+      state->name_addr = NULL;
+    }
+    if (state->name_length != NULL) {
+      if (shm_unlink(state->name_length) == -1) state->cleanup_failed = true;
+      state->name_length = NULL;
+    }
+  }
+#endif
+}
+
+static void readMappingCleanup(void *data) {
+  struct READ_MAPPING *state = (struct READ_MAPPING *) data;
+  releaseReadMapping(state, state->unlink_names);
+}
+
+static bool closeReadDescriptors(struct READ_MAPPING *state) {
+#ifdef WIN32
+  (void) state;
+  return true;
+#else
+  bool success = true;
+  if (state->fd_addr >= 0) {
+    const int fd_addr = state->fd_addr;
+    state->fd_addr = -1;
+    if (close(fd_addr) == -1) success = false;
+  }
+  if (state->fd_length >= 0) {
+    const int fd_length = state->fd_length;
+    state->fd_length = -1;
+    if (close(fd_length) == -1) success = false;
+  }
+  return success;
+#endif
+}
 
 static void mapping_error(SEXP ext, struct OBJECT *ptr, bool unlink_addr,
                           bool unlink_length, const char *message) {
@@ -131,7 +282,11 @@ static void map_finalizer(SEXP ext) {
   if (ptr == NULL) return;
   const bool verbose = ptr->verbose;
   R_ClearExternalPtr(ext);
-  releaseObject(ptr, true, true);
+#ifdef WIN32
+  releaseObject(ptr, false, false);
+#else
+  releaseObject(ptr, ptr->own_addr, ptr->own_length);
+#endif
   if (verbose) Rprintf("* Finalize...\n");
   if (verbose) Rprintf("* Clear external pointer...\n");
   if (verbose) Rprintf("* Clear external pointer...OK\n");
@@ -181,6 +336,10 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
   foo->length = NULL;
   foo->STORAGE_ID = NULL;
   foo->LENGTH_ID = NULL;
+  foo->own_addr = false;
+  foo->own_length = false;
+  foo->token = 0;
+  foo->have_token = false;
   foo->STORAGE_SIZE = BUF_SIZE;
 #endif
   SEXP ext = PROTECT(R_MakeExternalPtr(foo, getMappingTag(), R_NilValue));
@@ -218,6 +377,8 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
   bool created_length = false;
   foo->fd_addr = openMap(foo->STORAGE_ID, &created_addr);
   foo->fd_length = openMap(foo->LENGTH_ID, &created_length);
+  foo->own_addr = created_addr;
+  foo->own_length = created_length;
   if (foo->fd_addr == -1 || foo->fd_length == -1) {
     const int open_errno = errno;
     Rprintf("shm_open error, errno(%d): %s\n", open_errno, strerror(open_errno));
@@ -258,10 +419,15 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
     mapping_error(ext, foo, created_addr, created_length, "* Map view file...ERROR");
   }
   if (verbose) Rprintf("* Map view file...OK\n");
+  if (created_addr && created_length) {
+    foo->token = createMappingToken(foo);
+    memcpy((char *) foo->length + TOKEN_OFFSET, &foo->token, sizeof(foo->token));
+    foo->have_token = true;
+  }
   int close_addr = close(foo->fd_addr);
-  if (close_addr == 0) foo->fd_addr = -1;
+  foo->fd_addr = -1;
   int close_length = close(foo->fd_length);
-  if (close_length == 0) foo->fd_length = -1;
+  foo->fd_length = -1;
   if (close_addr == -1 || close_length == -1) {
     mapping_error(ext, foo, created_addr, created_length, "* Closing file descriptors...ERROR");
   }
@@ -279,6 +445,85 @@ SEXP createMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP DataObje
  *  Function to retrieve data
  */
 
+static SEXP readMappingObject(void *data) {
+  struct READ_MAPPING *state = (struct READ_MAPPING *) data;
+  const char *pMN = state->name_addr;
+  const char *pML = state->name_length;
+#ifdef WIN32
+  state->hMapFile = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, pMN);
+  state->hMapLength = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, pML);
+  if (state->hMapFile == NULL || state->hMapFile == INVALID_HANDLE_VALUE ||
+      state->hMapLength == NULL || state->hMapLength == INVALID_HANDLE_VALUE) {
+    Rf_error("* Creating file mapping...ERROR");
+  }
+#else
+  state->fd_addr = shm_open(pMN, O_RDONLY, S_IRUSR | S_IWUSR);
+  state->fd_length = shm_open(pML, O_RDONLY, S_IRUSR | S_IWUSR);
+  if (state->fd_addr == -1 || state->fd_length == -1) {
+    Rf_error("* Creating file mapping...ERROR");
+  }
+#endif
+  if (state->verbose) Rprintf("* Creating file mapping...OK\n");
+#ifdef WIN32
+  state->lpMapLength = (LPCTSTR) MapViewOfFile(state->hMapLength, FILE_MAP_ALL_ACCESS, 0, 0, 256);
+  if (state->lpMapLength == NULL) {
+    Rf_error("* Map view file (length)...ERROR");
+  }
+#else
+  struct stat lengthstat;
+  if (fstat(state->fd_length, &lengthstat) == -1 || lengthstat.st_size < 256) {
+    Rf_error("* Invalid shared memory length size...ERROR");
+  }
+  state->length = mmap(NULL, 256, PROT_READ, MAP_SHARED, state->fd_length, 0);
+  if (state->length == MAP_FAILED) {
+    Rf_error("* Map view file (length)...ERROR");
+  }
+#endif
+  if (state->verbose) Rprintf("* Map view file (length)...OK\n");
+#ifdef WIN32
+  size_t len = *(size_t *) state->lpMapLength;
+#else
+  size_t len = *(size_t *) state->length;
+#endif
+  if (len == 0 || (uintmax_t) len > (uintmax_t) R_XLEN_T_MAX ||
+      (uintmax_t) len > (uintmax_t) (SIZE_MAX / sizeof(Rbyte))) {
+    Rf_error("* Invalid shared data length...ERROR");
+  }
+#ifdef WIN32
+  state->lpMapAddress = (LPCTSTR) MapViewOfFile(state->hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, len*sizeof(Rbyte));
+  if (state->lpMapAddress == NULL) {
+    Rf_error("* Map view file (address)...ERROR");
+  }
+#else
+  struct stat addrstat;
+  if (fstat(state->fd_addr, &addrstat) == -1 || addrstat.st_size < 0 ||
+      (uintmax_t) addrstat.st_size < (uintmax_t) len) {
+    Rf_error("* Shared data size is invalid...ERROR");
+  }
+  state->addr_size = len * sizeof(Rbyte);
+  state->addr = mmap(NULL, state->addr_size, PROT_READ, MAP_SHARED, state->fd_addr, 0);
+  if (state->addr == MAP_FAILED) {
+    Rf_error("* Map view file (address)...ERROR");
+  }
+#endif
+  if (state->verbose) Rprintf("* Map view file (address)...OK\n");
+#ifndef WIN32
+  if (!closeReadDescriptors(state)) {
+    Rf_error("* Closing file descriptors...ERROR");
+  }
+#endif
+  state->ans = PROTECT(allocVector(RAWSXP, len));
+  if (state->verbose) Rprintf("* Create RAW Vector...OK\n");
+#ifdef WIN32
+  CopyMemory(RAW(state->ans), (Rbyte *) state->lpMapAddress, len*sizeof(Rbyte));
+#else
+  memcpy(RAW(state->ans), (Rbyte *) state->addr, len*sizeof(Rbyte));
+#endif
+  if (state->verbose) Rprintf("* Copy map memory...OK\n");
+  state->unlink_names = true;
+  return state->ans;
+}
+
 SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg) {
   if (TYPEOF(MapObjectName) != STRSXP || XLENGTH(MapObjectName) != 1) {
     Rf_error("Argument 'MapObjectName' must be of type character and length 1.");
@@ -290,130 +535,27 @@ SEXP getMappingObjectR (SEXP MapObjectName, SEXP MapLengthName, SEXP verboseArg)
     Rf_error("Argument 'verbose' must be TRUE or FALSE.");
   }
   const bool verbose = asLogical(verboseArg);
-#ifdef WIN32
-  LPSTR pMN = (LPSTR) CHAR(STRING_PTR_RO(MapObjectName)[0]);
-  LPSTR pML = (LPSTR) CHAR(STRING_PTR_RO(MapLengthName)[0]);
-  HANDLE hMapFile = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, pMN);
-  HANDLE hMapLength = OpenFileMapping(FILE_MAP_ALL_ACCESS, FALSE, pML);
-  if (hMapFile == INVALID_HANDLE_VALUE || hMapLength == INVALID_HANDLE_VALUE) {
-    releaseReadLength(hMapFile, hMapLength, NULL);
-#else
-  const char *pMN = CHAR(STRING_PTR_RO(MapObjectName)[0]);
-  const char *pML = CHAR(STRING_PTR_RO(MapLengthName)[0]);
-  int fd_addr = shm_open(pMN, O_RDONLY, S_IRUSR | S_IWUSR);
-  int fd_length = shm_open(pML, O_RDONLY, S_IRUSR | S_IWUSR);
-  if (fd_addr == -1 || fd_length == -1) {
-    releaseReadLength(fd_addr, fd_length, NULL);
-#endif
-    Rf_error("* Creating file mapping...ERROR");
+  struct READ_MAPPING state;
+  initReadMapping(&state);
+  state.name_addr = CHAR(STRING_PTR_RO(MapObjectName)[0]);
+  state.name_length = CHAR(STRING_PTR_RO(MapLengthName)[0]);
+  state.verbose = verbose;
+  SEXP ans = R_ExecWithCleanup(readMappingObject, &state, readMappingCleanup, &state);
+  const bool cleanup_failed = state.cleanup_failed;
+  if (cleanup_failed) {
+    if (state.ans != R_NilValue) UNPROTECT(1);
+    Rf_error("* Cleaning shared memory mapping...ERROR");
   }
-  if (verbose) Rprintf("* Creating file mapping...OK\n");
-#ifdef WIN32
-  LPCTSTR lpMapLength = (LPCTSTR) MapViewOfFile (hMapLength, FILE_MAP_ALL_ACCESS, 0, 0, 256);
-  if (lpMapLength == NULL) {
-    releaseReadLength(hMapFile, hMapLength, lpMapLength);
-#else
-  struct stat lengthstat;
-  if (fstat(fd_length, &lengthstat) == -1 || lengthstat.st_size < 256) {
-    releaseReadLength(fd_addr, fd_length, NULL);
-    Rf_error("* Invalid shared memory length size...ERROR");
+  if (verbose) {
+    Rprintf("* Closing mapping file (length)...OK\n");
+    Rprintf("* Closing mapping handle (length)...OK\n");
+    Rprintf("* Closing mapping file (address)...OK\n");
+    Rprintf("* Closing mapping handle (address)...OK\n");
   }
-  void *length = mmap(NULL, 256, PROT_READ, MAP_SHARED, fd_length, 0);
-  if (length == MAP_FAILED) {
-    shm_unlink(pML);
-    releaseReadLength(fd_addr, fd_length, length);
-#endif
-    Rf_error("* Map view file (length)...ERROR");
-  }
-  if (verbose) Rprintf("* Map view file (length)...OK\n");
-#ifdef WIN32
-  size_t len = *(size_t*)lpMapLength;
-  if (len == 0 || (uintmax_t) len > (uintmax_t) R_XLEN_T_MAX ||
-      (uintmax_t) len > (uintmax_t) (SIZE_MAX / sizeof(Rbyte))) {
-    releaseReadLength(hMapFile, hMapLength, lpMapLength);
-    Rf_error("* Invalid shared data length...ERROR");
-  }
-  LPCTSTR lpMapAddress = (LPCTSTR) MapViewOfFile (hMapFile, FILE_MAP_ALL_ACCESS, 0, 0, len*sizeof(Rbyte));
-  if (lpMapAddress == NULL) {
-    releaseReadLength(hMapFile, hMapLength, lpMapLength);
-    Rf_error("* Map view file (address)...ERROR");
-  }
-#else
-  size_t len = *(size_t*)length;
-  if (len == 0 || (uintmax_t) len > (uintmax_t) R_XLEN_T_MAX ||
-      (uintmax_t) len > (uintmax_t) (SIZE_MAX / sizeof(Rbyte))) {
-    releaseReadLength(fd_addr, fd_length, length);
-    Rf_error("* Invalid shared data length...ERROR");
-  }
-  struct stat addrstat;
-  if (fstat(fd_addr, &addrstat) == -1 || addrstat.st_size < 0 ||
-      (uintmax_t) addrstat.st_size < (uintmax_t) len) {
-    releaseReadLength(fd_addr, fd_length, length);
-    Rf_error("* Shared data size is invalid...ERROR");
-  }
-  void *addr = mmap(NULL, len*sizeof(Rbyte), PROT_READ, MAP_SHARED, fd_addr, 0);
-  if (addr == MAP_FAILED) {
-    shm_unlink(pMN);
-    releaseReadLength(fd_addr, fd_length, length);
-    Rf_error("* Map view file (address)...ERROR");
-  }
-#endif
-  if (verbose) Rprintf("* Map view file (address)...OK\n");
-#ifndef WIN32
-  int close_addr = close(fd_addr);
-  if (close_addr == 0) fd_addr = -1;
-  int close_length = close(fd_length);
-  if (close_length == 0) fd_length = -1;
-  if (close_addr == -1 || close_length == -1) {
-    releaseReadLength(fd_addr, fd_length, length);
-    Rf_error("* Closing file descriptors...ERROR");
-  }
-#endif
-  SEXP ans = PROTECT(allocVector(RAWSXP, len));
-  if (verbose) Rprintf("* Create RAW Vector...OK\n");
-#ifdef WIN32
-  CopyMemory(RAW(ans), (Rbyte*)lpMapAddress, len*sizeof(Rbyte));
-#else
-  memcpy(RAW(ans), (Rbyte*)addr, len*sizeof(Rbyte)); // maybe need +1
-#endif
-  if (verbose) Rprintf("* Copy map memory...OK\n");
-  
-#ifdef WIN32
-  if (!UnmapViewOfFile(lpMapLength)) {
-#else
-  if (munmap(length, 256) == -1) {
-#endif
-    Rf_error("* Closing mapping file (length)...ERROR");
-  }
-  if (verbose) Rprintf("* Closing mapping file (length)...OK\n");
-#ifdef WIN32
-  if (!CloseHandle(hMapLength)) {
-#else
-  if (shm_unlink(pML) == -1) {
-#endif
-    Rf_error("* Closing mapping handle (length)...ERROR");
-  }
-  if (verbose) Rprintf("* Closing mapping handle (length)...OK\n");
-  
-#ifdef WIN32
-  if (!UnmapViewOfFile(lpMapAddress)) {
-#else
-  if (munmap(addr, len*sizeof(Rbyte)) == -1) {
-#endif
-    Rf_error("* Closing mapping file (address)...ERROR");
-  }
-  if (verbose) Rprintf("* Closing mapping file (address)...OK\n");
-#ifdef WIN32
-  if (!CloseHandle(hMapFile)) {
-#else
-  if (shm_unlink(pMN) == -1) {
-#endif
-    Rf_error("* Closing mapping handle (address)...ERROR");
-  }
-  if (verbose) Rprintf("* Closing mapping handle (address)...OK\n");
-  UNPROTECT(1);
+  if (state.ans != R_NilValue) UNPROTECT(1);
   return ans;
 }
+
 
 /*
  *  Function to clear mapping object

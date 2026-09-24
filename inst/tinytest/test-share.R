@@ -37,3 +37,26 @@ small <- tryCatch(shareData(1:3, size_name), error = function(err) NULL)
 if (is.null(small)) exit_file("shared memory unavailable - skipping shareData size test")
 expect_error(shareData(as.list(seq_len(10000)), size_name), pattern = "ERROR", fixed = TRUE, info = "share-0055.006 undersized mapping reuse")
 expect_true(clearData(small), info = "share-0055.007 undersized mapping cleanup")
+
+owner_name <- paste0("/kit55-owner-", Sys.getpid())
+first <- tryCatch(shareData(1:3, owner_name), error = function(err) NULL)
+if (is.null(first)) exit_file("shared memory unavailable - skipping ownership test")
+second <- tryCatch(shareData(4:6, owner_name), error = function(err) NULL)
+if (is.null(second)) {
+  clearData(first)
+  exit_file("shared-memory re-share unavailable - skipping ownership test")
+}
+expect_true(clearData(second), info = "share-0055.008 non-owner cleanup")
+expect_identical(getData(owner_name), 4:6, info = "share-0055.009 owner remains readable")
+if (.Platform$OS.type != "windows") {
+  replacement <- tryCatch(shareData(7:9, owner_name), error = function(err) NULL)
+  if (is.null(replacement)) {
+    expect_true(clearData(first), info = "share-0055.011 old owner cleanup")
+  } else {
+    expect_true(clearData(first), info = "share-0055.012 old owner cleanup")
+    expect_identical(getData(owner_name), 7:9, info = "share-0055.013 replacement remains readable")
+    expect_true(clearData(replacement), info = "share-0055.014 replacement cleanup")
+  }
+} else {
+  expect_true(clearData(first), info = "share-0055.010 owner cleanup")
+}
