@@ -12,8 +12,22 @@ expect_error(shareData(mtcars, "share59", verbose = "yes"), pattern = "Argument 
 expect_error(getData(""), pattern = "Argument 'map_name' must be a single non-empty, non-missing string.", fixed = TRUE, info = "share-0059.007 getData empty map_name")
 expect_error(getData(NA_character_), pattern = "Argument 'map_name' must be a single non-empty, non-missing string.", fixed = TRUE, info = "share-0059.008 getData NA map_name")
 expect_error(getData("share59", verbose = NA), pattern = "Argument 'verbose' must be TRUE or FALSE and length 1.", fixed = TRUE, info = "share-0059.009 getData NA verbose")
+expect_error(clearData(1), pattern = "Argument 'x' must be an external pointer like the one returned by shareData().", fixed = TRUE, info = "share-0055.001 clearData invalid pointer")
 
-x <- tryCatch(shareData(mtcars, "share1"), error = function(err) NULL)
+map_name <- paste0("/kit55-", Sys.getpid())
+x <- tryCatch(shareData(mtcars, map_name), error = function(err) NULL)
 if (is.null(x)) exit_file("shared memory unavailable - skipping shareData tests")
-expect_identical(getData("share1"), mtcars, info = "share-0022.001 getData roundtrip")
+invisible(gc())
+expect_identical(getData(map_name), mtcars, info = "share-0022.001 getData roundtrip")
+if (.Platform$OS.type == "windows") {
+  expect_identical(getData(map_name), mtcars, info = "share-0055.002 Windows mapping remains readable")
+} else {
+  expect_error(getData(map_name), pattern = "Creating file mapping...ERROR", fixed = TRUE, info = "share-0055.002 getData consumes map")
+}
 expect_true(clearData(x), info = "share-0022.002 clearData")
+expect_true(!clearData(x), info = "share-0055.003 clearData twice")
+
+x <- tryCatch(shareData(1:10, map_name), error = function(err) NULL)
+if (is.null(x)) exit_file("shared memory unavailable - skipping shareData re-share test")
+expect_identical(getData(map_name), 1:10, info = "share-0055.004 re-share after clear")
+expect_true(clearData(x), info = "share-0055.005 re-share clearData")

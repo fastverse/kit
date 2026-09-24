@@ -2,6 +2,8 @@
 
 ### Bug Fixes
 
+- Fix shared-memory lifetime and error-path safety in `shareData()`: POSIX mapping names are now owned copies, long-vector lengths and allocation sizes are checked, finalizer verbosity is per mapping, and failed mappings release descriptors, mappings, and temporary state (#55).
+
 - Fix segfault in `vswitch`/`nswitch` on length-0 character input: the character encoding path dereferenced element 0 without checking length. The encoding check is now skipped for empty `x` and `isMixEnc`/`enc2UTF8` handle empty input safely, with no overhead on the fast path (#66).
 
 - Fix `.onAttach`/`.onLoad` crash on bad `kit.nThread` (`NULL`/`NA`/length != 1): the option is now sanitized to `1L`, the default is restored via `is.null(getOption())`, and the startup message only prints in interactive sessions (#56).
