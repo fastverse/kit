@@ -103,6 +103,29 @@ z0 = rnorm(1000L)
 
   expect_identical(psum(unclass(mtcars)), psum(mtcars), info="psum-0005.029")
 
+  expect_identical(psum(c(NA_integer_, 1L, NA_integer_), c(2L, NA_integer_, 3L), na.rm = TRUE), c(2L, 1L, 3L), info="psum-0074.001")
+
+  expect_identical(psum(c(NA_real_, 1, NaN), c(2, NA_real_, 3), na.rm = TRUE), c(2, 1, 3), info="psum-0074.002")
+
+  expect_identical(psum(c(NA_complex_, 1+2i, complex(real=NaN, imaginary=3)), c(2+0i, NA_complex_, 4+5i), na.rm = TRUE), c(2+0i, 1+2i, 4+5i), info="psum-0074.003")
+
+  expect_identical(psum(c(Inf, 1), c(-Inf, 2), c(3, NA_real_), na.rm = TRUE), c(NaN, 3), info="psum-0074.004")
+
+  expect_identical(psum(complex(real=c(1, NaN), imaginary=c(2, 3)), complex(real=c(4, 5), imaginary=c(6, NA_real_)), na.rm = TRUE), c(5+8i, 0+0i), info="psum-0074.005")
+
+  psum_named <- c(first=NA_real_, second=1)
+  psum_y <- c(first=2, second=3)
+  attr(psum_named, "label") <- "first"
+  psum_attr <- psum(psum_named, psum_y, na.rm = TRUE)
+  psum_expected <- c(first=2, second=4)
+  attr(psum_expected, "label") <- "first"
+  expect_identical(psum_attr, psum_expected, info="psum-0074.006")
+  expect_identical(attr(psum_attr, "label"), "first", info="psum-0074.007")
+
+  expect_identical(psum(c(NA_real_, 1), c(2, 3), na.rm = FALSE), c(NA_real_, 4), info="psum-0074.008")
+
+  expect_identical(writeBin(psum(c(NA_real_, NA_real_), c(-0, -0), na.rm = TRUE), raw(), endian = "little"), as.raw(rep(0, 16)), info="psum-0074.009")
+
 
   expect_identical(pprod(x, y, z, na.rm = FALSE), c(6, NA, NA, 5), info="pprod-0006.001")
 
