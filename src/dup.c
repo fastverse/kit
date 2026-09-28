@@ -202,7 +202,7 @@ SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast) { // move to matrix if poss
  *  Matrix
  */
 
-SEXP dupMatrixR(SEXP x, SEXP uniq, Rboolean idx, SEXP fromLast) {
+SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
   if(!IS_BOOL(fromLast)) {
     error("Argument 'fromLast' must be TRUE or FALSE and length 1.");
   }

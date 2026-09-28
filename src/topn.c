@@ -37,10 +37,10 @@ SEXP topnR(SEXP vec, SEXP n, SEXP dec, SEXP hasna, SEXP env) {
   if (!IS_BOOL(hasna)) {
     error("Argument 'hasna' must be TRUE or FALSE and length 1.");
   }
-  const Rboolean dcr = asLogical(dec);
+  const bool dcr = asLogical(dec);
   const SEXPTYPE tvec = UTYPEOF(vec);
-  const Rboolean vhasna = asLogical(hasna);
-  if ( ((len0 > 2000 && vhasna == FALSE) || (len0 > 1500 && vhasna == TRUE)) && (tvec == INTSXP || tvec == REALSXP)) {
+  const bool vhasna = asLogical(hasna);
+  if ( ((len0 > 2000 && !vhasna) || (len0 > 1500 && vhasna)) && (tvec == INTSXP || tvec == REALSXP)) {
     SEXP prem = PROTECT(callToOrder(vec, "radix", dcr, TRUE, env));
     SEXP ans = PROTECT(allocVector(UTYPEOF(prem), len0));
     switch(UTYPEOF(prem)) {

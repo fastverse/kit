@@ -30,7 +30,7 @@ SEXP psumR(SEXP na, SEXP args) {
   SEXPTYPE anstype = UTYPEOF(args0);
   SEXPTYPE type0 = anstype;
   const R_xlen_t len0 = xlength(args0);
-  Rboolean hasFactor = isFactor(args0);
+  bool hasFactor = isFactor(args0);
   if (anstype != LGLSXP && anstype != INTSXP && anstype != REALSXP && anstype != CPLXSXP) {
     error("Argument %d is of type %s. Only integer/logical, double and complex types are supported. "
           "A data.frame (of the previous types) is also supported as a single input. ",
@@ -50,7 +50,7 @@ SEXP psumR(SEXP na, SEXP args) {
     if (type > anstype) {
       anstype = type;
     }
-    hasFactor = hasFactor ? TRUE : isFactor(PTR_ETL(args, i));
+    hasFactor = hasFactor || isFactor(PTR_ETL(args, i));
   }
   if(anstype == LGLSXP) anstype = INTSXP; // We can sum logical vectors into an integer vector
   if (hasFactor) {
@@ -210,7 +210,7 @@ SEXP pprodR(SEXP na, SEXP args) {
   SEXPTYPE anstype = UTYPEOF(args0);
   SEXPTYPE type0 = anstype;
   const R_xlen_t len0 = xlength(args0);
-  Rboolean hasFactor = isFactor(args0);
+  bool hasFactor = isFactor(args0);
   if (anstype != LGLSXP && anstype != INTSXP && anstype != REALSXP && anstype != CPLXSXP) {
     error("Argument %d is of type %s. Only integer/logical, double and complex types are supported. "
           "A data.frame (of the previous types) is also supported as a single input. ",
@@ -230,7 +230,7 @@ SEXP pprodR(SEXP na, SEXP args) {
     if (type > anstype) {
       anstype = type;
     }
-    hasFactor = hasFactor ? TRUE : isFactor(PTR_ETL(args, i));
+    hasFactor = hasFactor || isFactor(PTR_ETL(args, i));
   }
   if (hasFactor) {
     error("Function 'pprod' is not meaningful for factors.");
@@ -478,7 +478,7 @@ SEXP pmeanR(SEXP na, SEXP args) {
   const SEXP args0 = PTR_ETL(args, 0);
   SEXPTYPE type0 = UTYPEOF(args0);
   const R_xlen_t len0 = xlength(args0);
-  Rboolean hasFactor = isFactor(args0);
+  bool hasFactor = isFactor(args0);
   if (type0 != LGLSXP && type0 != INTSXP && type0 != REALSXP) {
     error("Argument %d is of type %s. Only integer/logical and double types are supported. "
           "A data.frame (of the previous types) is also supported as a single input. ",
@@ -495,7 +495,7 @@ SEXP pmeanR(SEXP na, SEXP args) {
               "If you wish to 'recycle' your argument, please use rep() to make this intent "
               "clear to the readers of your code.", i+1, len1, 1, len0);
     }
-    hasFactor = hasFactor ? TRUE : isFactor(PTR_ETL(args, i));
+    hasFactor = hasFactor || isFactor(PTR_ETL(args, i));
   }
   if (hasFactor) {
     error("Function 'pmean' is not meaningful for factors.");
@@ -1042,7 +1042,7 @@ SEXP fpminR(SEXP na, SEXP args) {
   SEXPTYPE anstype = UTYPEOF(args0);
   SEXPTYPE type0 = anstype;
   const R_xlen_t len0 = xlength(args0);
-  Rboolean hasFactor = isFactor(args0);
+  bool hasFactor = isFactor(args0);
   if (anstype != LGLSXP && anstype != INTSXP && anstype != REALSXP) {
     error("Argument %d is of type %s. Only integer/logical and double types are supported. "
           "A data.frame (of the previous types) is also supported as a single input. ",
@@ -1062,7 +1062,7 @@ SEXP fpminR(SEXP na, SEXP args) {
     if (type > anstype) {
       anstype = type;
     }
-    hasFactor = hasFactor ? TRUE : isFactor(PTR_ETL(args, i));
+    hasFactor = hasFactor || isFactor(PTR_ETL(args, i));
   }
   if (hasFactor) {
     error("Function 'fpmin' is not meaningful for factors.");
@@ -1211,7 +1211,7 @@ SEXP fpmaxR(SEXP na, SEXP args) {
   SEXPTYPE anstype = UTYPEOF(args0);
   SEXPTYPE type0 = anstype;
   const R_xlen_t len0 = xlength(args0);
-  Rboolean hasFactor = isFactor(args0);
+  bool hasFactor = isFactor(args0);
   if (anstype != LGLSXP && anstype != INTSXP && anstype != REALSXP) {
     error("Argument %d is of type %s. Only integer/logical and double types are supported. "
           "A data.frame (of the previous types) is also supported as a single input. ",
@@ -1231,7 +1231,7 @@ SEXP fpmaxR(SEXP na, SEXP args) {
     if (type > anstype) {
       anstype = type;
     }
-    hasFactor = hasFactor ? TRUE : isFactor(PTR_ETL(args, i));
+    hasFactor = hasFactor || isFactor(PTR_ETL(args, i));
   }
   if (hasFactor) {
     error("Function 'fpmax' is not meaningful for factors.");
@@ -1380,7 +1380,7 @@ SEXP prangeR(SEXP na, SEXP args) {
   SEXPTYPE anstype = UTYPEOF(args0);
   SEXPTYPE type0 = anstype;
   const R_xlen_t len0 = xlength(args0);
-  Rboolean hasFactor = isFactor(args0);
+  bool hasFactor = isFactor(args0);
   if (anstype != LGLSXP && anstype != INTSXP && anstype != REALSXP) {
     error("Argument %d is of type %s. Only integer/logical and double types are supported. "
           "A data.frame (of the previous types) is also supported as a single input. ",
@@ -1400,7 +1400,7 @@ SEXP prangeR(SEXP na, SEXP args) {
     if (type > anstype) {
       anstype = type;
     }
-    hasFactor = hasFactor ? TRUE : isFactor(PTR_ETL(args, i));
+    hasFactor = hasFactor || isFactor(PTR_ETL(args, i));
   }
   if (hasFactor) {
     error("Function 'prange' is not meaningful for factors.");
