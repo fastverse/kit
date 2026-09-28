@@ -1,0 +1,49 @@
+# Build artifacts from running the toolchain inside the checkout
+# (R CMD INSTALL, R CMD build, R CMD check).
+#
+# Scope: the git working tree only. This file has no effect on the
+# distribution tarball -- .Rbuildignore does that job.
+#
+# In particular, do NOT add the tracked `cleanup` script here. It is not
+# redundant with this file: R CMD build runs it automatically (R-exts 1.2) to
+# strip the generated src/Makevars out of the tarball, and `configure`
+# regenerates src/Makevars from src/Makevars.in on every platform. Without it a
+# developer's macOS -lgomp Makevars leaks into a Linux CRAN build.
+
+# --- compiled objects and shared/static libraries ---
+*.o
+*.so
+*.dll
+*.a
+*.dylib
+
+# --- generated build configuration ---
+# configure renders this from the tracked src/Makevars.in. The rule is
+# deliberately narrow: src/Makevars.in and src/Makevars.win are tracked and
+# must stay visible, so do not widen this to src/Makevars*.
+/src/Makevars
+
+# --- R CMD build / R CMD check output ---
+*.tar.gz
+*.Rcheck/
+*.out
+
+# --- coverage report written to the repo root by .github/workflows/test-coverage.yaml ---
+/cobertura.xml
+
+# --- pkgdown site, built into docs/ by .github/workflows/pkgdown.yaml ---
+# (the tracked pkgdown/ directory holds the site config and is not ignored)
+/docs/
+
+# --- R session and editor/OS junk ---
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+.DS_Store
+
+# --- defensive ---
+# Not produced by the toolchain used here (verified absent after
+# R CMD INSTALL on R 4.6.1), but src/symbols.rds is a real R install artifact
+# and is cheap to keep out of history.
+/src/symbols.rds
