@@ -4,6 +4,15 @@
 
 #### Bug Fixes
 
+- Fix shared-memory lifetime and error-path safety in
+  [`shareData()`](https://fastverse.org/kit/reference/shareData.md):
+  POSIX mapping names are now owned copies, long-vector lengths,
+  allocation sizes, and existing mapping sizes are checked, finalizer
+  verbosity is per mapping, failed mappings release descriptors,
+  mappings, and temporary state, reader cleanup is unwind-safe, and
+  finalizers verify mapping identity before unlinking owned names
+  ([\#55](https://github.com/fastverse/kit/issues/55)).
+
 - Fix segfault in `vswitch`/`nswitch` on length-0 character input: the
   character encoding path dereferenced element 0 without checking
   length. The encoding check is now skipped for empty `x` and
