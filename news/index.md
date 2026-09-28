@@ -48,6 +48,17 @@
   Tests now fail loudly (1271 expectations) with zero additional
   dependencies.
 
+- Replace the remaining `Rboolean` scalars in the C sources with `bool`
+  (`callToOrder`, `dupMatrixR`, `topnR`, and the `hasFactor` flags in
+  `psum`), keeping `asLogical()` as the R-value boundary. `Rboolean` is
+  only intended for the `TRUE`/`FALSE` enum and misbehaves for logical
+  vector elements under `stdbool.h` and C23, as reported by
+  [@aitap](https://github.com/aitap) in
+  [\#42](https://github.com/fastverse/kit/issues/42). The
+  `LGLSXP`/`INTSXP` branches in `subSetColMatrix` are merged since
+  `LOGICAL()` and `INTEGER()` are both `int*`
+  ([\#62](https://github.com/fastverse/kit/issues/62)).
+
 - Reduce a redundant initialization pass in multi-argument
   `psum(..., na.rm = TRUE)` for integer, double, and complex inputs
   while preserving missing-value semantics
