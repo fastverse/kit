@@ -73,6 +73,16 @@
   ([\#63](https://github.com/fastverse/kit/issues/63), tests-only, no C
   changes). Coverage now requires \> 90% via Codecov.
 
+- Add a root `.gitignore` for build artifacts (`src/*.o`, `src/kit.so`,
+  the `src/Makevars` that `configure` generates, `*.tar.gz`,
+  `*.Rcheck/`, `cobertura.xml`, `docs/`, and R session junk), so an
+  in-tree `R CMD INSTALL` no longer leaves 13 untracked files that a
+  stray `git add -A` would commit. The `src/Makevars` rule is narrow so
+  the tracked `src/Makevars.in` and `src/Makevars.win` stay visible, and
+  the tracked `cleanup` script is deliberately not ignored: it is what
+  keeps the generated `Makevars` out of the distribution tarball
+  ([\#78](https://github.com/fastverse/kit/issues/78)).
+
 ## kit 0.0.22 (2026-08-25)
 
 #### Bug Fixes
