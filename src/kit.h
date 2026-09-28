@@ -71,7 +71,7 @@
 #define IS_LOGICAL(x) (isLogical(x) && LENGTH(x)==1)
 
 extern SEXP addColToDataFrame(SEXP df, SEXP mcol, SEXP coln);
-extern SEXP callToOrder (SEXP x, const char* method, bool desc, Rboolean na, SEXP env);
+extern SEXP callToOrder (SEXP x, const char* method, bool desc, bool na, SEXP env);
 extern SEXP charToFactR(SEXP x, SEXP decreasingArg, SEXP nthread, SEXP nalast, SEXP env, SEXP addNA);
 extern SEXP countR(SEXP x, SEXP y);
 extern SEXP countNAR(SEXP x);
@@ -83,7 +83,7 @@ extern SEXP dupR(SEXP x, SEXP uniq, SEXP fromLast);
 extern SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast);
 extern SEXP dupVecIndexOnlyR(SEXP x);
 extern SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast);
-extern SEXP dupMatrixR(SEXP x, SEXP uniq, Rboolean idx, SEXP fromLast);
+extern SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast);
 extern SEXP dupLenR(SEXP x);
 extern SEXP dupLenDataFrameR(SEXP x);
 extern SEXP dupLenMatrixR(SEXP x);

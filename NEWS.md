@@ -16,6 +16,8 @@
 
 - The test suite was migrated to tinytest: the legacy custom `check()` only printed failures without stopping, so regressions went unnoticed. Tests now fail loudly (1271 expectations) with zero additional dependencies.
 
+- Replace the remaining `Rboolean` scalars in the C sources with `bool` (`callToOrder`, `dupMatrixR`, `topnR`, and the `hasFactor` flags in `psum`), keeping `asLogical()` as the R-value boundary. `Rboolean` is only intended for the `TRUE`/`FALSE` enum and misbehaves for logical vector elements under `stdbool.h` and C23, as reported by @aitap in #42. The `LGLSXP`/`INTSXP` branches in `subSetColMatrix` are merged since `LOGICAL()` and `INTEGER()` are both `int*` (#62).
+
 - Reduce a redundant initialization pass in multi-argument `psum(..., na.rm = TRUE)` for integer, double, and complex inputs while preserving missing-value semantics (#74).
 
 - New test coverage for `fpmin`/`fpmax`/`prange` (`NA`/`NaN` + `na.rm`, `logical < integer < double` promotion, `prange` double-only rule, single list/`data.frame` path), `kit.nThread = 1` vs `2` determinism (`iif`/`vswitch`/`nswitch`/`charToFact`/`psort`), and mixed-encoding `checkEnc`, `funique` `data.table`/`tibble` attributes, `Date`/factor preservation and empty inputs (#63, tests-only, no C changes). Coverage now requires > 90% via Codecov.
