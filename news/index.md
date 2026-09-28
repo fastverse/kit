@@ -48,6 +48,11 @@
   Tests now fail loudly (1271 expectations) with zero additional
   dependencies.
 
+- Reduce a redundant initialization pass in multi-argument
+  `psum(..., na.rm = TRUE)` for integer, double, and complex inputs
+  while preserving missing-value semantics
+  ([\#74](https://github.com/fastverse/kit/issues/74)).
+
 - New test coverage for `fpmin`/`fpmax`/`prange` (`NA`/`NaN` + `na.rm`,
   `logical < integer < double` promotion, `prange` double-only rule,
   single list/`data.frame` path), `kit.nThread = 1` vs `2` determinism
