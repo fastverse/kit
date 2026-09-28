@@ -62,14 +62,22 @@ SEXP psumR(SEXP na, SEXP args) {
   switch(anstype) {
   case INTSXP: {
     int *restrict pans =INTEGER(ans);
-    if(narm) {
+    int first = 1;
+    if(narm && n > 1) {
+      int *pa = INTEGER(PTR_ETL(args, 1));
+      for (ssize_t j = 0; j < len0; ++j) {
+        pans[j] = (pans[j] == NA_INTEGER ? 0 : pans[j]) +
+          (pa[j] == NA_INTEGER ? 0 : pa[j]);
+      }
+      first = 2;
+    } else if(narm) {
       for (ssize_t j = 0; j < len0; ++j) {
         if (pans[j] == NA_INTEGER) {
-          pans[j] = 0; 
+          pans[j] = 0;
         }
       }
     }
-    for (int i = 1; i < n; ++i) {
+    for (int i = first; i < n; ++i) {
       int *pa = INTEGER(PTR_ETL(args, i));
       if (narm) {
         for (ssize_t j = 0; j < len0; ++j) {
@@ -84,17 +92,35 @@ SEXP psumR(SEXP na, SEXP args) {
   } break;
   case REALSXP: {
     double *restrict pans = REAL(ans);
+    int first = 1;
     SEXP dbl_a = R_NilValue;
     PROTECT_INDEX Idbl;
     PROTECT_WITH_INDEX(dbl_a, &Idbl); nprotect++;
-    if(narm) {
+    if(narm && n > 1) {
+      SEXPTYPE targs1 = UTYPEOF(PTR_ETL(args, 1));
+      if (targs1 != anstype) {
+        REPROTECT(dbl_a = coerceVector(PTR_ETL(args, 1), anstype), Idbl);
+      } else {
+        REPROTECT(dbl_a = PTR_ETL(args, 1), Idbl);
+      }
+      double *pa = REAL(dbl_a);
       for (ssize_t j = 0; j < len0; ++j) {
         if (ISNAN(pans[j])) {
-          pans[j] = 0; 
+          pans[j] = 0;
+        }
+        if (!ISNAN(pa[j])) {
+          pans[j] += pa[j];
+        }
+      }
+      first = 2;
+    } else if(narm) {
+      for (ssize_t j = 0; j < len0; ++j) {
+        if (ISNAN(pans[j])) {
+          pans[j] = 0;
         }
       }
     }
-    for (int i = 1; i < n; ++i) {
+    for (int i = first; i < n; ++i) {
       SEXPTYPE targsi = UTYPEOF(PTR_ETL(args, i));
       if (targsi != anstype) {
         REPROTECT(dbl_a = coerceVector(PTR_ETL(args, i), anstype), Idbl);
@@ -115,10 +141,30 @@ SEXP psumR(SEXP na, SEXP args) {
   } break;
   case CPLXSXP: {
     Rcomplex *restrict pans = COMPLEX(ans);
+    int first = 1;
     SEXP cpl_a = R_NilValue;
     PROTECT_INDEX Icpl;
     PROTECT_WITH_INDEX(cpl_a, &Icpl); nprotect++;
-    if(narm) {
+    if(narm && n > 1) {
+      SEXPTYPE targs1 = UTYPEOF(PTR_ETL(args, 1));
+      if (targs1 != anstype) {
+        REPROTECT(cpl_a=coerceVector(PTR_ETL(args, 1), anstype), Icpl);
+      } else {
+        REPROTECT(cpl_a=PTR_ETL(args, 1), Icpl);
+      }
+      Rcomplex *pa = COMPLEX(cpl_a);
+      for (ssize_t j = 0; j < len0; ++j) {
+        if (ISNAN_COMPLEX(pans[j])) {
+          pans[j].r = 0;
+          pans[j].i = 0;
+        }
+        if (!ISNAN_COMPLEX(pa[j])) {
+          pans[j].r += pa[j].r;
+          pans[j].i += pa[j].i;
+        }
+      }
+      first = 2;
+    } else if(narm) {
       for (ssize_t j = 0; j < len0; ++j) {
         if (ISNAN_COMPLEX(pans[j])) {
           pans[j].r = 0;
@@ -126,7 +172,7 @@ SEXP psumR(SEXP na, SEXP args) {
         }
       }
     }
-    for (int i = 1; i < n; ++i) {
+    for (int i = first; i < n; ++i) {
       SEXPTYPE targsi = UTYPEOF(PTR_ETL(args, i));
       if (targsi != anstype) {
         REPROTECT(cpl_a=coerceVector(PTR_ETL(args, i), anstype), Icpl);
