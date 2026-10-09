@@ -34,6 +34,15 @@
 
 #### Notes
 
+- Document the `shareData`/`getData`/`clearData` contract in
+  [`?shareData`](https://fastverse.org/kit/reference/shareData.md):
+  deep-copy cost (object serialized twice plus a memory-map copy, not a
+  pointer), single-read `getData`, lifetime and cleanup semantics,
+  platform differences, and a two-session `\dontrun` example;
+  cross-links the zero-copy request
+  ([\#43](https://github.com/fastverse/kit/issues/43))
+  ([\#60](https://github.com/fastverse/kit/issues/60)).
+
 - Clean up `DESCRIPTION` metadata: bump `Depends` to `R (>= 3.5.0)` to
   match the `DATAPTR_RO` fallback in `src/kit.h`
   ([`...length()`](https://rdrr.io/r/base/dots.html),

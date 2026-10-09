@@ -52,7 +52,7 @@
 <dd><p>A <span style="R">R</span> object like a vector or a <code>data.frame</code>.</p></dd>
 
   <dt id="arg-map-name">map_name<a class="anchor" aria-label="anchor" href="#arg-map-name"></a></dt>
-<dd><p>A character. A name for the memory map location where to store the data.</p></dd>
+<dd><p>A character. A name for the memory map location where to store the data. Needs to start with a "/" on POSIX platforms, this is done automatically if missing.</p></dd>
 
   <dt id="arg-x">x<a class="anchor" aria-label="anchor" href="#arg-x"></a></dt>
 <dd><p>An external pointer like the one returned by function <code>shareData</code>.</p></dd>
@@ -62,10 +62,21 @@
 
 </dl></div>
     <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p><code>shareData</code> is a deep copy, not a pointer: the object is serialized into a raw vector in the sharing session and that raw vector is copied into a shared memory object. <code>getData</code> copies the raw vector back into the reading session and unserializes it. The full object is thus serialized twice and copied once, which for large objects dominates the cost of the transfer.</p>
+<p>The shared object can be read once: <code>getData</code> unlinks the memory map as soon as it has read the data, so calling <code>getData</code> again with the same <code>map_name</code> fails.</p>
+<p>The data lives as long as the external pointer returned by <code>shareData</code> exists in the sharing session: <code>clearData</code> unmaps and unlinks the shared memory object and returns <code>TRUE</code>, or <code>FALSE</code> if it was already cleared. The same cleanup happens automatically when that pointer is garbage collected or the session exits. If the sharing session is killed before any of that, the shared memory object may persist (<code>/dev/shm</code> on POSIX) until removed.</p>
+<p>Functions are currently only tested on POSIX platforms (using <code>shm_open</code>) and Windows (using named file mappings), other platforms are untested.</p>
+    </div>
+    <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p><code>shareData</code> returns a external pointer.
 <code>getData</code> returns an <span style="R">R</span> object stored in the memory location <code>map_name</code>.
 <code>clearData</code> returns <code>TRUE</code> or <code>FALSE</code> depending on whether the data have been cleared in memory.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="note">Note<a class="anchor" aria-label="anchor" href="#note"></a></h2>
+    <p>Sharing objects is not zero-copy: a plain pointer into the R heap of another session cannot work, because R objects carry process-private metadata (garbage collection, string cache, ALTREP, ...). Issue #43 (<a href="https://github.com/fastverse/kit/issues/43" class="external-link">https://github.com/fastverse/kit/issues/43</a>) tracks the request for a lightweight pointer-based alternative.</p>
     </div>
     <div class="section level2">
     <h2 id="author">Author<a class="anchor" aria-label="anchor" href="#author"></a></h2>
@@ -74,14 +85,16 @@
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># In R session 1: share data in memory</span></span></span>
-<span class="r-in"><span><span class="co"># &gt; x = shareData(mtcars,"share1")</span></span></span>
-<span class="r-in"><span><span class="co">#</span></span></span>
-<span class="r-in"><span><span class="co"># In R session 2: get data from session 1</span></span></span>
-<span class="r-in"><span><span class="co"># &gt; getData("share1")</span></span></span>
-<span class="r-in"><span><span class="co">#</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="co"># In R session 1: share data in memory</span></span></span>
+<span class="r-in"><span><span class="va">x</span> <span class="op">=</span> <span class="fu">shareData</span><span class="op">(</span><span class="va">mtcars</span>,<span class="st">"share1"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># In R session 2: get data from session 1 (readable only once!)</span></span></span>
+<span class="r-in"><span><span class="fu">getData</span><span class="op">(</span><span class="st">"share1"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># In R session 1: clear data in memory</span></span></span>
-<span class="r-in"><span><span class="co"># &gt; clearData(x)</span></span></span>
+<span class="r-in"><span><span class="fu">clearData</span><span class="op">(</span><span class="va">x</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
