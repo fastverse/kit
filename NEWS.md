@@ -12,6 +12,8 @@
 
 ### Notes
 
+- Document the `shareData`/`getData`/`clearData` contract in `?shareData`: deep-copy cost (object serialized twice plus a memory-map copy, not a pointer), single-read `getData`, lifetime and cleanup semantics, platform differences, and a two-session `\dontrun` example; cross-links the zero-copy request (#43) (#60).
+
 - Clean up `DESCRIPTION` metadata: bump `Depends` to `R (>= 3.5.0)` to match the `DATAPTR_RO` fallback in `src/kit.h` (`...length()`, `R_RegisterCCallable`/`STRING_PTR_RO` need newer than 3.1), use `ByteCompile: yes` per WRE, drop `Repository: CRAN` from the dev tree, and add `Config/Needs/website: pkgdown` (`Suggests` already covers `data.table`/`tibble`/`tinytest` used in tests and vignette) (#58).
 
 - The test suite was migrated to tinytest: the legacy custom `check()` only printed failures without stopping, so regressions went unnoticed. Tests now fail loudly (1271 expectations) with zero additional dependencies.
