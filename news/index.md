@@ -32,6 +32,31 @@
   closed via `on.exit` even when `serialize`/`unserialize` fails
   ([\#59](https://github.com/fastverse/kit/issues/59)).
 
+- Audit compiled length handling for 64-bit long vectors:
+  `IS_BOOL`/`IS_LOGICAL` and the character `psort`/`charToFact` paths
+  now use `XLENGTH()` (long character vectors are refused with the
+  standard “Long vector not supported yet” error before any data is
+  read), `funique`/`uniqLen` handle \> 2^31 elements for factors and
+  logicals, `topn` on long inputs returns double indices like
+  [`base::order`](https://rdrr.io/r/base/order.html), `subSetRowMatrix`
+  row indexing no longer overflows for matrices with \>= 2^31 cells, and
+  byte-size casts that truncated above 4 GiB are fixed
+  ([\#61](https://github.com/fastverse/kit/issues/61)).
+
+- Fix two segfaults found while auditing length handling
+  ([\#61](https://github.com/fastverse/kit/issues/61)):
+  `funique`/`uniqLen` on factors containing `NA` read the count table
+  out of bounds (the `NA` code is now kept in its own slot and missing
+  elements are returned in the same order as
+  [`base::unique`](https://rdrr.io/r/base/unique.html)/`length(unique())`),
+  and `dfToMatrix` refused to bound-check a flat `int` index, so
+  `funique`/`uniqLen` on data.frames with more than `INT_MAX` cells
+  (e.g. 50k columns) wrote out of bounds; such data.frames now raise the
+  standard “Long vector not supported yet” error. Factor codes outside
+  `1..nlevels` (e.g. after `attr(x, "levels")` surgery) no longer index
+  the count table out of bounds either and are returned as `NA` like
+  base; distinct invalid codes collapse into one missing value.
+
 #### Notes
 
 - Document the `shareData`/`getData`/`clearData` contract in
