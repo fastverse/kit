@@ -57,6 +57,22 @@
   the count table out of bounds either and are returned as `NA` like
   base; distinct invalid codes collapse into one missing value.
 
+- Guard the mixed-type data.frame paths in `funique`/`fduplicated`
+  (`dupDataFrameR`), `uniqLen` (`dupLenDataFrameR`), and `countOccur`
+  (`countOccurDataFrameR`): with more than `INT_MAX` rows the row count
+  was truncated to `int` inside `allocMatrix()`, so 2³¹⁻²32 rows errored
+  with R’s confusing “negative extents to matrix” message (and above
+  2^32 rows the mixed `funique`/`uniqLen` logical-column case could
+  write out of bounds, which the per-column 2^30 guard only prevents for
+  other types). These paths now stop up front with the standard “Long
+  vector not supported yet” error, before any allocation, when the rows
+  exceed `INT_MAX` or the matrix would exceed `INT_MAX` cells — the same
+  bound the all-same-type branch has applied to `dfToMatrix()` since the
+  length audit ([\#61](https://github.com/fastverse/kit/issues/61)), so
+  the same data.frame now fails the same way regardless of whether its
+  columns share one type
+  ([\#82](https://github.com/fastverse/kit/issues/82)).
+
 #### Notes
 
 - Reduce `topn` memory use on long vectors (more than `INT_MAX`
