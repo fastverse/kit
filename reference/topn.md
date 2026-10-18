@@ -51,6 +51,21 @@ topn(vec, n=6L, decreasing=TRUE, hasna=TRUE, index=TRUE)
 value of `n`, i.e. 1500 or 2000 (depending on the value of `hasna`),
 `topn` will default to base R function `order`.
 
+For inputs longer than `.Machine$integer.max` the result is a `double`
+vector of indices, as an integer cannot address the whole input,
+computed with memory proportional to `n`: the selection heap needs about
+24 bytes per entry (double value, long index, missing flag) and the
+returned indices 8 bytes each. Note that for `n` larger than roughly
+three quarters of the input length this can exceed the memory of a
+full-length `order` index, and `order` (for `decreasing=FALSE`)
+processes such inputs faster; the saving is the largest for small `n`.
+The output matches
+`order(vec, decreasing=decreasing, method="radix", na.last=TRUE)[1:n]`:
+ties keep input order and missing values are placed last in input order;
+this holds whatever the value of `hasna`, and
+[`order`](https://rdrr.io/r/base/order.html) itself errors with
+`decreasing=TRUE` for such inputs while `topn` does not.
+
 ## Author
 
 Morgan Jacob

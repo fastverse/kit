@@ -59,6 +59,20 @@
 
 #### Notes
 
+- Reduce `topn` memory use on long vectors (more than `INT_MAX`
+  elements): the long path allocated a full-length radix
+  [`order()`](https://rdrr.io/r/base/order.html) index (~8 x length
+  bytes, ~17 GB for a 2^31-element input, only to return n indices) and
+  is replaced by a bounded heap of the n best (value, index) entries, so
+  memory is now proportional to n; unmaterialized ALTREP inputs are read
+  element-wise without being materialized. The result is unchanged —
+  double indices like `order(vec, method="radix", na.last=TRUE)[1:n]`,
+  ties and missing values keeping input order regardless of `hasna` —
+  and `decreasing=TRUE` now works on such inputs, where the
+  [`order()`](https://rdrr.io/r/base/order.html) path errored with base
+  R’s “long vectors not supported”
+  ([\#83](https://github.com/fastverse/kit/issues/83)).
+
 - Document the `shareData`/`getData`/`clearData` contract in
   [`?shareData`](https://fastverse.org/kit/reference/shareData.md):
   deep-copy cost (object serialized twice plus a memory-map copy, not a
