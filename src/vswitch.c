@@ -18,6 +18,59 @@
 
 #include "kit.h"
 
+/* Atomic outputs stay value-major (vectorizable); string/list outputs scan x
+   once because SET_STRING_ELT/SET_VECTOR_ELT are serial anyway. */
+#define VSWITCH_LIST_LOOP_SERIAL(MATCH) \
+  for (ssize_t j = 0; j < len_x; ++j) { \
+    OUT_DEFAULT; \
+    for (ssize_t i = 0; i < len_values; ++i) { \
+      if (MATCH) { OUT_SET(i); } \
+    } \
+  }
+
+#define VSWITCH_LIST_INPUT_SERIAL(CASE, TYPE, PXEXPR, PVEXPR, MATCH) \
+  case CASE: { \
+    const TYPE *restrict px = PXEXPR; \
+    const TYPE *restrict pvalues = PVEXPR; \
+    VSWITCH_LIST_LOOP_SERIAL(MATCH) \
+  } break;
+
+#define VSWITCH_ATOMIC_LOOP_OMP(MATCH0, MATCH) \
+  OMP_PARALLEL_FOR(nth) \
+  for (ssize_t j = 0; j < len_x; ++j) { \
+    if (MATCH0) { OUT_SET(0); } else { OUT_DEFAULT; } \
+  } \
+  for (ssize_t i = 1; i < len_values; ++i) { \
+    OMP_PARALLEL_FOR(nth) \
+    for (ssize_t j = 0; j < len_x; ++j) { \
+      if (MATCH) { OUT_SET(i); } \
+    } \
+  }
+
+#define VSWITCH_ATOMIC_LOOP_SERIAL(MATCH0, MATCH) \
+  for (ssize_t j = 0; j < len_x; ++j) { \
+    if (MATCH0) { OUT_SET(0); } else { OUT_DEFAULT; } \
+  } \
+  for (ssize_t i = 1; i < len_values; ++i) { \
+    for (ssize_t j = 0; j < len_x; ++j) { \
+      if (MATCH) { OUT_SET(i); } \
+    } \
+  }
+
+#define VSWITCH_ATOMIC_INPUT_OMP(CASE, TYPE, PXEXPR, PVEXPR, MATCH0, MATCH) \
+  case CASE: { \
+    const TYPE *restrict px = PXEXPR; \
+    const TYPE *restrict pvalues = PVEXPR; \
+    VSWITCH_ATOMIC_LOOP_OMP(MATCH0, MATCH) \
+  } break;
+
+#define VSWITCH_ATOMIC_INPUT_SERIAL(CASE, TYPE, PXEXPR, PVEXPR, MATCH0, MATCH) \
+  case CASE: { \
+    const TYPE *restrict px = PXEXPR; \
+    const TYPE *restrict pvalues = PVEXPR; \
+    VSWITCH_ATOMIC_LOOP_SERIAL(MATCH0, MATCH) \
+  } break;
+
 SEXP vswitchR(SEXP x, SEXP values, SEXP outputs, SEXP na, SEXP nthreads, SEXP chkenc) {
   if (!IS_BOOL(chkenc)) {
     error("Argument 'checkEnc' must be TRUE or FALSE and length 1.");
@@ -101,10 +154,13 @@ SEXP vswitchR(SEXP x, SEXP values, SEXP outputs, SEXP na, SEXP nthreads, SEXP ch
         UNPROTECT(1);
       } 
     }
-    ssize_t amask[len_values];
+    ssize_t *amask = (ssize_t*) R_alloc((size_t) len_values, sizeof(ssize_t));
     for (ssize_t i=0; i<len_values;++i) {
       if (isS4(po[i])) {
         error("S4 class objects for argument 'outputs' (item %zu) are not supported.", i+1);
+      }
+      if (UTYPEOF(po[i]) != type_outputs) {
+        error("Items of 'outputs' must have the same type (item %zu).", i+1);
       }
       R_xlen_t len_i = xlength(po[i]);
       if (len_i != len_x && len_i != 1) {
@@ -130,552 +186,148 @@ SEXP vswitchR(SEXP x, SEXP values, SEXP outputs, SEXP na, SEXP nthreads, SEXP ch
     /*
      *  This part is for LOGICAL
      */
-    case LGLSXP:{
+    case LGLSXP: {
       int *restrict pans = LOGICAL(ans);
-      const int *restrict pna = nonna ? LOGICAL(na) : NULL; 
+      const int *restrict pna = nonna ? LOGICAL(na) : NULL;
       ssize_t namask = len_na>1 ? SSIZE_MAX : 0;
-      OMP_PARALLEL_FOR(nth)
-      for (ssize_t j=0; j<len_x; ++j) {
-        pans[j]= nonna ? pna[j & namask] : NA_LOGICAL;
-      }
+      int **ppo = (int**) R_alloc((size_t) len_values, sizeof(int*));
+      for (ssize_t i=0; i<len_values; ++i) ppo[i] = LOGICAL(po[i]);
+      #define OUT_DEFAULT pans[j] = nonna ? pna[j & namask] : NA_LOGICAL
+      #define OUT_SET(k) pans[j] = ppo[k][j & amask[k]]
       switch(type_x) {
-      case LGLSXP: {
-        const int *restrict px = LOGICAL(x);
-        const int *restrict pvalues = LOGICAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = LOGICAL(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case INTSXP: {
-        const int *restrict px = INTEGER(x);
-        const int *restrict pvalues = INTEGER(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = LOGICAL(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case REALSXP: {
-        const double *restrict px = REAL(x);
-        const double *restrict pvalues = REAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = LOGICAL(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case CPLXSXP: {
-        const Rcomplex *restrict px = COMPLEX(x);
-        const Rcomplex *restrict pvalues = COMPLEX(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = LOGICAL(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (EQUAL_CPLX(px[j],pvalues[i])) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case STRSXP: {
-        const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = LOGICAL(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case VECSXP: {
-        const SEXP *restrict px = SEXPPTR_RO(x);
-        const SEXP *restrict pvalues = SEXPPTR_RO(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = LOGICAL(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (R_compute_identical(px[j], pvalues[i], 0)) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
+        VSWITCH_ATOMIC_INPUT_OMP(LGLSXP, int, LOGICAL(x), LOGICAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(INTSXP, int, INTEGER(x), INTEGER(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(REALSXP, double, REAL(x), REAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(CPLXSXP, Rcomplex, COMPLEX(x), COMPLEX(values), EQUAL_CPLX(px[j], pvalues[0]), EQUAL_CPLX(px[j], pvalues[i]))
+        VSWITCH_ATOMIC_INPUT_OMP(STRSXP, SEXP, STRING_PTR_RO(utfcon ? xans : x), STRING_PTR_RO(utfcon ? vans : values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_SERIAL(VECSXP, SEXP, SEXPPTR_RO(x), SEXPPTR_RO(values), R_compute_identical(px[j], pvalues[0], 0), R_compute_identical(px[j], pvalues[i], 0))
       default:
         error("Type %s is not supported for argument 'x'.", type2char(type_x));
       }
+      #undef OUT_DEFAULT
+      #undef OUT_SET
     } break;
     /*
      *  This part is for INTEGER
      */
-    case INTSXP:{
+    case INTSXP: {
       int *restrict pans = INTEGER(ans);
-      const int *restrict pna = nonna ? INTEGER(na) : NULL; 
+      const int *restrict pna = nonna ? INTEGER(na) : NULL;
       ssize_t namask = len_na>1 ? SSIZE_MAX : 0;
-      OMP_PARALLEL_FOR(nth)
-      for (ssize_t j=0; j<len_x; ++j) {
-        pans[j]= nonna ? pna[j & namask] : NA_INTEGER;
-      }
+      int **ppo = (int**) R_alloc((size_t) len_values, sizeof(int*));
+      for (ssize_t i=0; i<len_values; ++i) ppo[i] = INTEGER(po[i]);
+      #define OUT_DEFAULT pans[j] = nonna ? pna[j & namask] : NA_INTEGER
+      #define OUT_SET(k) pans[j] = ppo[k][j & amask[k]]
       switch(type_x) {
-      case LGLSXP: {
-        const int *restrict px = LOGICAL(x);
-        const int *restrict pvalues = LOGICAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = INTEGER(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case INTSXP: {
-        const int *restrict px = INTEGER(x);
-        const int *restrict pvalues = INTEGER(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = INTEGER(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case REALSXP: {
-        const double *restrict px = REAL(x);
-        const double *restrict pvalues = REAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = INTEGER(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case CPLXSXP: {
-        const Rcomplex *restrict px = COMPLEX(x);
-        const Rcomplex *restrict pvalues = COMPLEX(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = INTEGER(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (EQUAL_CPLX(px[j],pvalues[i])) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case STRSXP: {
-        const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = INTEGER(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case VECSXP: {
-        const SEXP *restrict px = SEXPPTR_RO(x);
-        const SEXP *restrict pvalues = SEXPPTR_RO(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          int *ppo = INTEGER(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (R_compute_identical(px[j], pvalues[i], 0)) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
+        VSWITCH_ATOMIC_INPUT_OMP(LGLSXP, int, LOGICAL(x), LOGICAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(INTSXP, int, INTEGER(x), INTEGER(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(REALSXP, double, REAL(x), REAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(CPLXSXP, Rcomplex, COMPLEX(x), COMPLEX(values), EQUAL_CPLX(px[j], pvalues[0]), EQUAL_CPLX(px[j], pvalues[i]))
+        VSWITCH_ATOMIC_INPUT_OMP(STRSXP, SEXP, STRING_PTR_RO(utfcon ? xans : x), STRING_PTR_RO(utfcon ? vans : values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_SERIAL(VECSXP, SEXP, SEXPPTR_RO(x), SEXPPTR_RO(values), R_compute_identical(px[j], pvalues[0], 0), R_compute_identical(px[j], pvalues[i], 0))
       default:
         error("Type %s is not supported for argument 'x'.", type2char(type_x));
       }
+      #undef OUT_DEFAULT
+      #undef OUT_SET
     } break;
     /*
      *  This part is for REAL
      */
-    case REALSXP:{
+    case REALSXP: {
       double *restrict pans = REAL(ans);
-      const double *restrict pna = nonna ? REAL(na) : NULL; 
+      const double *restrict pna = nonna ? REAL(na) : NULL;
       ssize_t namask = len_na>1 ? SSIZE_MAX : 0;
-      OMP_PARALLEL_FOR(nth)
-      for (ssize_t j=0; j<len_x; ++j) {
-        pans[j]= nonna ? pna[j & namask] : NA_REAL;
-      }
+      double **ppo = (double**) R_alloc((size_t) len_values, sizeof(double*));
+      for (ssize_t i=0; i<len_values; ++i) ppo[i] = REAL(po[i]);
+      #define OUT_DEFAULT pans[j] = nonna ? pna[j & namask] : NA_REAL
+      #define OUT_SET(k) pans[j] = ppo[k][j & amask[k]]
       switch(type_x) {
-      case LGLSXP: {
-        const int *restrict px = LOGICAL(x);
-        const int *restrict pvalues = LOGICAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          double *ppo = REAL(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case INTSXP: {
-        const int *restrict px = INTEGER(x);
-        const int *restrict pvalues = INTEGER(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          double *ppo = REAL(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case REALSXP: {
-        const double *restrict px = REAL(x);
-        const double *restrict pvalues = REAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          double *ppo = REAL(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case CPLXSXP: {
-        const Rcomplex *restrict px = COMPLEX(x);
-        const Rcomplex *restrict pvalues = COMPLEX(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          double *ppo = REAL(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (EQUAL_CPLX(px[j],pvalues[i])) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case STRSXP: {
-        const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          double *ppo = REAL(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case VECSXP: {
-        const SEXP *restrict px = SEXPPTR_RO(x);
-        const SEXP *restrict pvalues = SEXPPTR_RO(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          double *ppo = REAL(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (R_compute_identical(px[j], pvalues[i], 0)) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
+        VSWITCH_ATOMIC_INPUT_OMP(LGLSXP, int, LOGICAL(x), LOGICAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(INTSXP, int, INTEGER(x), INTEGER(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(REALSXP, double, REAL(x), REAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(CPLXSXP, Rcomplex, COMPLEX(x), COMPLEX(values), EQUAL_CPLX(px[j], pvalues[0]), EQUAL_CPLX(px[j], pvalues[i]))
+        VSWITCH_ATOMIC_INPUT_OMP(STRSXP, SEXP, STRING_PTR_RO(utfcon ? xans : x), STRING_PTR_RO(utfcon ? vans : values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_SERIAL(VECSXP, SEXP, SEXPPTR_RO(x), SEXPPTR_RO(values), R_compute_identical(px[j], pvalues[0], 0), R_compute_identical(px[j], pvalues[i], 0))
       default:
         error("Type %s is not supported for argument 'x'.", type2char(type_x));
       }
+      #undef OUT_DEFAULT
+      #undef OUT_SET
     } break;
     /*
      *  This part is for COMPLEX
      */
-    case CPLXSXP:{
+    case CPLXSXP: {
       Rcomplex *restrict pans = COMPLEX(ans);
-      const Rcomplex *restrict pna = nonna ? COMPLEX(na) : NULL; 
+      const Rcomplex *restrict pna = nonna ? COMPLEX(na) : NULL;
       ssize_t namask = len_na>1 ? SSIZE_MAX : 0;
-      Rcomplex NA_CPLX; NA_CPLX.r = NA_REAL; NA_CPLX.i = NA_REAL; // deal with that across all functions
-      OMP_PARALLEL_FOR(nth)
-      for (ssize_t j=0; j<len_x; ++j) {
-        pans[j]= nonna ? pna[j & namask] : NA_CPLX;
-      }
+      Rcomplex NA_CPLX; NA_CPLX.r = NA_REAL; NA_CPLX.i = NA_REAL;
+      Rcomplex **ppo = (Rcomplex**) R_alloc((size_t) len_values, sizeof(Rcomplex*));
+      for (ssize_t i=0; i<len_values; ++i) ppo[i] = COMPLEX(po[i]);
+      #define OUT_DEFAULT pans[j] = nonna ? pna[j & namask] : NA_CPLX
+      #define OUT_SET(k) pans[j] = ppo[k][j & amask[k]]
       switch(type_x) {
-      case LGLSXP: {
-        const int *restrict px = LOGICAL(x);
-        const int *restrict pvalues = LOGICAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          Rcomplex *ppo = COMPLEX(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case INTSXP: {
-        const int *restrict px = INTEGER(x);
-        const int *restrict pvalues = INTEGER(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          Rcomplex *ppo = COMPLEX(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case REALSXP: {
-        const double *restrict px = REAL(x);
-        const double *restrict pvalues = REAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          Rcomplex *ppo = COMPLEX(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case CPLXSXP: {
-        const Rcomplex *restrict px = COMPLEX(x);
-        const Rcomplex *restrict pvalues = COMPLEX(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          Rcomplex *ppo = COMPLEX(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (EQUAL_CPLX(px[j],pvalues[i])) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case STRSXP: {
-        const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          Rcomplex *ppo = COMPLEX(po[i]);
-          OMP_PARALLEL_FOR(nth)
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
-      case VECSXP: {
-        const SEXP *restrict px = SEXPPTR_RO(x);
-        const SEXP *restrict pvalues = SEXPPTR_RO(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          Rcomplex *ppo = COMPLEX(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (R_compute_identical(px[j], pvalues[i], 0)) {
-              pans[j]= ppo[j & amask[i]];
-            }
-          }
-        }
-      } break;
+        VSWITCH_ATOMIC_INPUT_OMP(LGLSXP, int, LOGICAL(x), LOGICAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(INTSXP, int, INTEGER(x), INTEGER(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(REALSXP, double, REAL(x), REAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(CPLXSXP, Rcomplex, COMPLEX(x), COMPLEX(values), EQUAL_CPLX(px[j], pvalues[0]), EQUAL_CPLX(px[j], pvalues[i]))
+        VSWITCH_ATOMIC_INPUT_OMP(STRSXP, SEXP, STRING_PTR_RO(utfcon ? xans : x), STRING_PTR_RO(utfcon ? vans : values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_SERIAL(VECSXP, SEXP, SEXPPTR_RO(x), SEXPPTR_RO(values), R_compute_identical(px[j], pvalues[0], 0), R_compute_identical(px[j], pvalues[i], 0))
       default:
         error("Type %s is not supported for argument 'x'.", type2char(type_x));
       }
+      #undef OUT_DEFAULT
+      #undef OUT_SET
     } break;
     /*
      *  This part is for STRING
      */
-    case STRSXP:{
-      const SEXP *restrict pna = nonna ? STRING_PTR_RO(na) : NULL; 
+    case STRSXP: {
+      const SEXP *restrict pna = nonna ? STRING_PTR_RO(na) : NULL;
       ssize_t namask = len_na>1 ? SSIZE_MAX : 0;
-      for (ssize_t j=0; j<len_x; ++j) {
-        SET_STRING_ELT(ans, j, nonna ? pna[j & namask] : NA_STRING);
-      }
+      const SEXP **ppo = (const SEXP**) R_alloc((size_t) len_values, sizeof(SEXP*));
+      for (ssize_t i=0; i<len_values; ++i) ppo[i] = STRING_PTR_RO(po[i]);
+      #define OUT_DEFAULT SET_STRING_ELT(ans, j, nonna ? pna[j & namask] : NA_STRING)
+      #define OUT_SET(k) SET_STRING_ELT(ans, j, ppo[k][j & amask[k]])
       switch(type_x) {
-      case LGLSXP: {
-        const int *restrict px = LOGICAL(x);
-        const int *restrict pvalues = LOGICAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = STRING_PTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              SET_STRING_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
-      case INTSXP: {
-        const int *restrict px = INTEGER(x);
-        const int *restrict pvalues = INTEGER(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = STRING_PTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              SET_STRING_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
-      case REALSXP: {
-        const double *restrict px = REAL(x);
-        const double *restrict pvalues = REAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = STRING_PTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              SET_STRING_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
-      case CPLXSXP: {
-        const Rcomplex *restrict px = COMPLEX(x);
-        const Rcomplex *restrict pvalues = COMPLEX(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = STRING_PTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (EQUAL_CPLX(px[j],pvalues[i])) {
-              SET_STRING_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
-      case STRSXP: {
-        const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = STRING_PTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              SET_STRING_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
-      case VECSXP: {
-        const SEXP *restrict px = SEXPPTR_RO(x);
-        const SEXP *restrict pvalues = SEXPPTR_RO(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = STRING_PTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (R_compute_identical(px[j], pvalues[i], 0)) {
-              SET_STRING_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
+        VSWITCH_LIST_INPUT_SERIAL(LGLSXP, int, LOGICAL(x), LOGICAL(values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(INTSXP, int, INTEGER(x), INTEGER(values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(REALSXP, double, REAL(x), REAL(values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(CPLXSXP, Rcomplex, COMPLEX(x), COMPLEX(values), EQUAL_CPLX(px[j], pvalues[i]))
+        VSWITCH_LIST_INPUT_SERIAL(STRSXP, SEXP, STRING_PTR_RO(utfcon ? xans : x), STRING_PTR_RO(utfcon ? vans : values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(VECSXP, SEXP, SEXPPTR_RO(x), SEXPPTR_RO(values), R_compute_identical(px[j], pvalues[i], 0))
       default:
         error("Type %s is not supported for argument 'x'.", type2char(type_x));
       }
+      #undef OUT_DEFAULT
+      #undef OUT_SET
     } break;
     /*
      *  This part is for LIST
      */
-    case VECSXP:{
-      const SEXP *restrict pna = nonna ? SEXPPTR_RO(na) : NULL; 
+    case VECSXP: {
+      const SEXP *restrict pna = nonna ? SEXPPTR_RO(na) : NULL;
       ssize_t namask = len_na>1 ? SSIZE_MAX : 0;
-      for (ssize_t j=0; j<len_x; ++j) {
-        if (nonna) {
-          SET_VECTOR_ELT(ans, j, pna[j & namask]); 
-        }
-      }
+      const SEXP **ppo = (const SEXP**) R_alloc((size_t) len_values, sizeof(SEXP*));
+      for (ssize_t i=0; i<len_values; ++i) ppo[i] = SEXPPTR_RO(po[i]);
+      #define OUT_DEFAULT if (nonna) SET_VECTOR_ELT(ans, j, pna[j & namask])
+      #define OUT_SET(k) SET_VECTOR_ELT(ans, j, ppo[k][j & amask[k]])
       switch(type_x) {
-      case LGLSXP: {
-        const int *restrict px = LOGICAL(x);
-        const int *restrict pvalues = LOGICAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = SEXPPTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              SET_VECTOR_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
-      case INTSXP: {
-        const int *restrict px = INTEGER(x);
-        const int *restrict pvalues = INTEGER(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = SEXPPTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              SET_VECTOR_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
-      case REALSXP: {
-        const double *restrict px = REAL(x);
-        const double *restrict pvalues = REAL(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = SEXPPTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              SET_VECTOR_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
-      case CPLXSXP: {
-        const Rcomplex *restrict px = COMPLEX(x);
-        const Rcomplex *restrict pvalues = COMPLEX(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = SEXPPTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (EQUAL_CPLX(px[j],pvalues[i])) {
-              SET_VECTOR_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
-      case STRSXP: {
-        const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = SEXPPTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (px[j]==pvalues[i]) {
-              SET_VECTOR_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
-      case VECSXP: {
-        const SEXP *restrict px = SEXPPTR_RO(x);
-        const SEXP *restrict pvalues = SEXPPTR_RO(values);
-        for (ssize_t i=0; i<len_values; ++i) {
-          const SEXP *ppo = SEXPPTR_RO(po[i]);
-          for (ssize_t j=0; j<len_x; ++j) {
-            if (R_compute_identical(px[j], pvalues[i], 0)) {
-              SET_VECTOR_ELT(ans, j, ppo[j & amask[i]]);
-            }
-          }
-        }
-      } break;
+        VSWITCH_LIST_INPUT_SERIAL(LGLSXP, int, LOGICAL(x), LOGICAL(values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(INTSXP, int, INTEGER(x), INTEGER(values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(REALSXP, double, REAL(x), REAL(values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(CPLXSXP, Rcomplex, COMPLEX(x), COMPLEX(values), EQUAL_CPLX(px[j], pvalues[i]))
+        VSWITCH_LIST_INPUT_SERIAL(STRSXP, SEXP, STRING_PTR_RO(utfcon ? xans : x), STRING_PTR_RO(utfcon ? vans : values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(VECSXP, SEXP, SEXPPTR_RO(x), SEXPPTR_RO(values), R_compute_identical(px[j], pvalues[i], 0))
       default:
         error("Type %s is not supported for argument 'x'.", type2char(type_x));
       }
+      #undef OUT_DEFAULT
+      #undef OUT_SET
     } break;
-    default :
-      error("Type %s is not supported for argument 'outputs'", type2char(type_outputs));
+    default:
+      error("Type %s is not supported for argument 'outputs'.", type2char(type_outputs));
     }
   } else { // Here it is for vectors
     if (nonna && type_na != type_o) {
@@ -701,434 +353,115 @@ SEXP vswitchR(SEXP x, SEXP values, SEXP outputs, SEXP na, SEXP nthreads, SEXP ch
      */
     case LGLSXP:{
       int *restrict pans = LOGICAL(ans);
-      const int *restrict pna = nonna ? LOGICAL(na) : NULL; 
+      const int *restrict pna = nonna ? LOGICAL(na) : NULL;
       ssize_t namask = len_na>1 ? SSIZE_MAX : 0;
-      OMP_PARALLEL_FOR(nth)
-      for (ssize_t j=0; j<len_x; ++j) {
-        pans[j]= nonna ? pna[j & namask] : NA_LOGICAL;
-      }
       const int *restrict pto = LOGICAL(outputs);
+      #define OUT_DEFAULT pans[j] = nonna ? pna[j & namask] : NA_LOGICAL
+      #define OUT_SET(k) pans[j] = pto[k]
       switch(type_x) {
-      case LGLSXP: {
-        const int *restrict px = LOGICAL(x);
-        const int *restrict pvalues = LOGICAL(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case INTSXP: {
-        const int *restrict px = INTEGER(x);
-        const int *restrict pvalues = INTEGER(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case REALSXP: {
-        const double *restrict px = REAL(x);
-        const double *restrict pvalues = REAL(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case CPLXSXP: {
-        const Rcomplex *restrict px = COMPLEX(x);
-        const Rcomplex *restrict pvalues = COMPLEX(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (EQUAL_CPLX(px[j],pvalues[i])) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case STRSXP: {
-        const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case VECSXP: {
-        const SEXP *restrict px = SEXPPTR_RO(x);
-        const SEXP *restrict pvalues = SEXPPTR_RO(values);
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (R_compute_identical(px[j], pvalues[i], 0)) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
+        VSWITCH_ATOMIC_INPUT_OMP(LGLSXP, int, LOGICAL(x), LOGICAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(INTSXP, int, INTEGER(x), INTEGER(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(REALSXP, double, REAL(x), REAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(CPLXSXP, Rcomplex, COMPLEX(x), COMPLEX(values), EQUAL_CPLX(px[j], pvalues[0]), EQUAL_CPLX(px[j], pvalues[i]))
+        VSWITCH_ATOMIC_INPUT_OMP(STRSXP, SEXP, STRING_PTR_RO(utfcon ? xans : x), STRING_PTR_RO(utfcon ? vans : values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_SERIAL(VECSXP, SEXP, SEXPPTR_RO(x), SEXPPTR_RO(values), R_compute_identical(px[j], pvalues[0], 0), R_compute_identical(px[j], pvalues[i], 0))
       default:
         error("Type %s is not supported for argument 'x'.", type2char(type_x));
       }
+      #undef OUT_DEFAULT
+      #undef OUT_SET
     } break;
     /*
      *  This part is for INTEGER
      */
     case INTSXP:{
       int *restrict pans = INTEGER(ans);
-      const int *restrict pna = nonna ? INTEGER(na) : NULL; 
+      const int *restrict pna = nonna ? INTEGER(na) : NULL;
       ssize_t namask = len_na>1 ? SSIZE_MAX : 0;
-      OMP_PARALLEL_FOR(nth)
-      for (ssize_t j=0; j<len_x; ++j) {
-        pans[j]= nonna ? pna[j & namask] : NA_INTEGER;
-      }
       const int *restrict pto = INTEGER(outputs);
+      #define OUT_DEFAULT pans[j] = nonna ? pna[j & namask] : NA_INTEGER
+      #define OUT_SET(k) pans[j] = pto[k]
       switch(type_x) {
-      case LGLSXP: {
-        const int *restrict px = LOGICAL(x);
-        const int *restrict pvalues = LOGICAL(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case INTSXP: {
-        const int *restrict px = INTEGER(x);
-        const int *restrict pvalues = INTEGER(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case REALSXP: {
-        const double *restrict px = REAL(x);
-        const double *restrict pvalues = REAL(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case CPLXSXP: {
-        const Rcomplex *restrict px = COMPLEX(x);
-        const Rcomplex *restrict pvalues = COMPLEX(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (EQUAL_CPLX(px[j],pvalues[i])) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case STRSXP: {
-        const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case VECSXP: {
-        const SEXP *restrict px = SEXPPTR_RO(x);
-        const SEXP *restrict pvalues = SEXPPTR_RO(values);
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (R_compute_identical(px[j], pvalues[i], 0)) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
+        VSWITCH_ATOMIC_INPUT_OMP(LGLSXP, int, LOGICAL(x), LOGICAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(INTSXP, int, INTEGER(x), INTEGER(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(REALSXP, double, REAL(x), REAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(CPLXSXP, Rcomplex, COMPLEX(x), COMPLEX(values), EQUAL_CPLX(px[j], pvalues[0]), EQUAL_CPLX(px[j], pvalues[i]))
+        VSWITCH_ATOMIC_INPUT_OMP(STRSXP, SEXP, STRING_PTR_RO(utfcon ? xans : x), STRING_PTR_RO(utfcon ? vans : values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_SERIAL(VECSXP, SEXP, SEXPPTR_RO(x), SEXPPTR_RO(values), R_compute_identical(px[j], pvalues[0], 0), R_compute_identical(px[j], pvalues[i], 0))
       default:
         error("Type %s is not supported for argument 'x'.", type2char(type_x));
       }
+      #undef OUT_DEFAULT
+      #undef OUT_SET
     } break;
     /*
      *  This part is for REAL
      */
     case REALSXP:{
       double *restrict pans = REAL(ans);
-      const double *restrict pna = nonna ? REAL(na) : NULL; 
+      const double *restrict pna = nonna ? REAL(na) : NULL;
       ssize_t namask = len_na>1 ? SSIZE_MAX : 0;
-      OMP_PARALLEL_FOR(nth)
-      for (ssize_t j=0; j<len_x; ++j) {
-        pans[j]= nonna ? pna[j & namask] : NA_REAL;
-      }
       const double *restrict pto = REAL(outputs);
+      #define OUT_DEFAULT pans[j] = nonna ? pna[j & namask] : NA_REAL
+      #define OUT_SET(k) pans[j] = pto[k]
       switch(type_x) {
-      case LGLSXP: {
-        const int *restrict px = LOGICAL(x);
-        const int *restrict pvalues = LOGICAL(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case INTSXP: {
-        const int *restrict px = INTEGER(x);
-        const int *restrict pvalues = INTEGER(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case REALSXP: {
-        const double *restrict px = REAL(x);
-        const double *restrict pvalues = REAL(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case CPLXSXP: {
-        const Rcomplex *restrict px = COMPLEX(x);
-        const Rcomplex *restrict pvalues = COMPLEX(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (EQUAL_CPLX(px[j],pvalues[i])) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case STRSXP: {
-        const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case VECSXP: {
-        const SEXP *restrict px = SEXPPTR_RO(x);
-        const SEXP *restrict pvalues = SEXPPTR_RO(values);
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (R_compute_identical(px[j], pvalues[i], 0)) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
+        VSWITCH_ATOMIC_INPUT_OMP(LGLSXP, int, LOGICAL(x), LOGICAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(INTSXP, int, INTEGER(x), INTEGER(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(REALSXP, double, REAL(x), REAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(CPLXSXP, Rcomplex, COMPLEX(x), COMPLEX(values), EQUAL_CPLX(px[j], pvalues[0]), EQUAL_CPLX(px[j], pvalues[i]))
+        VSWITCH_ATOMIC_INPUT_OMP(STRSXP, SEXP, STRING_PTR_RO(utfcon ? xans : x), STRING_PTR_RO(utfcon ? vans : values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_SERIAL(VECSXP, SEXP, SEXPPTR_RO(x), SEXPPTR_RO(values), R_compute_identical(px[j], pvalues[0], 0), R_compute_identical(px[j], pvalues[i], 0))
       default:
         error("Type %s is not supported for argument 'x'.", type2char(type_x));
       }
+      #undef OUT_DEFAULT
+      #undef OUT_SET
     } break;
     /*
      *  This part is for COMPLEX
      */
     case CPLXSXP:{
       Rcomplex *restrict pans = COMPLEX(ans);
-      const Rcomplex *restrict pna = nonna ? COMPLEX(na) : NULL; 
+      const Rcomplex *restrict pna = nonna ? COMPLEX(na) : NULL;
       ssize_t namask = len_na>1 ? SSIZE_MAX : 0;
-      Rcomplex NA_CPLX; NA_CPLX.r = NA_REAL; NA_CPLX.i = NA_REAL; // deal with that across all functions
-      OMP_PARALLEL_FOR(nth)
-      for (ssize_t j=0; j<len_x; ++j) {
-        pans[j]= nonna ? pna[j & namask] : NA_CPLX;
-      }
+      Rcomplex NA_CPLX; NA_CPLX.r = NA_REAL; NA_CPLX.i = NA_REAL;
       const Rcomplex *restrict pto = COMPLEX(outputs);
+      #define OUT_DEFAULT pans[j] = nonna ? pna[j & namask] : NA_CPLX
+      #define OUT_SET(k) pans[j] = pto[k]
       switch(type_x) {
-      case LGLSXP: {
-        const int *restrict px = LOGICAL(x);
-        const int *restrict pvalues = LOGICAL(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case INTSXP: {
-        const int *restrict px = INTEGER(x);
-        const int *restrict pvalues = INTEGER(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case REALSXP: {
-        const double *restrict px = REAL(x);
-        const double *restrict pvalues = REAL(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case CPLXSXP: {
-        const Rcomplex *restrict px = COMPLEX(x);
-        const Rcomplex *restrict pvalues = COMPLEX(values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (EQUAL_CPLX(px[j],pvalues[i])) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case STRSXP: {
-        const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : values);
-        OMP_PARALLEL_FOR(nth)
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
-      case VECSXP: {
-        const SEXP *restrict px = SEXPPTR_RO(x);
-        const SEXP *restrict pvalues = SEXPPTR_RO(values);
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (R_compute_identical(px[j], pvalues[i], 0)) {
-              pans[j]=pto[i];
-            }
-          }
-        }
-      } break;
+        VSWITCH_ATOMIC_INPUT_OMP(LGLSXP, int, LOGICAL(x), LOGICAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(INTSXP, int, INTEGER(x), INTEGER(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(REALSXP, double, REAL(x), REAL(values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_OMP(CPLXSXP, Rcomplex, COMPLEX(x), COMPLEX(values), EQUAL_CPLX(px[j], pvalues[0]), EQUAL_CPLX(px[j], pvalues[i]))
+        VSWITCH_ATOMIC_INPUT_OMP(STRSXP, SEXP, STRING_PTR_RO(utfcon ? xans : x), STRING_PTR_RO(utfcon ? vans : values), px[j]==pvalues[0], px[j]==pvalues[i])
+        VSWITCH_ATOMIC_INPUT_SERIAL(VECSXP, SEXP, SEXPPTR_RO(x), SEXPPTR_RO(values), R_compute_identical(px[j], pvalues[0], 0), R_compute_identical(px[j], pvalues[i], 0))
       default:
         error("Type %s is not supported for argument 'x'.", type2char(type_x));
       }
+      #undef OUT_DEFAULT
+      #undef OUT_SET
     } break;
     /*
      *  This part is for STRING
      */
     case STRSXP:{
-      const SEXP *restrict pna = nonna ? STRING_PTR_RO(na) : NULL; 
+      const SEXP *restrict pna = nonna ? STRING_PTR_RO(na) : NULL;
       ssize_t namask = len_na>1 ? SSIZE_MAX : 0;
-      for (ssize_t j=0; j<len_x; ++j) {
-        SET_STRING_ELT(ans, j, nonna ? pna[j & namask] : NA_STRING);
-      }
       const SEXP *restrict pto = STRING_PTR_RO(outputs);
+      #define OUT_DEFAULT SET_STRING_ELT(ans, j, nonna ? pna[j & namask] : NA_STRING)
+      #define OUT_SET(k) SET_STRING_ELT(ans, j, pto[k])
       switch(type_x) {
-      case LGLSXP: {
-        const int *restrict px = LOGICAL(x);
-        const int *restrict pvalues = LOGICAL(values);
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              SET_STRING_ELT(ans, j, pto[i]);
-            }
-          }
-        }
-      } break;
-      case INTSXP: {
-        const int *restrict px = INTEGER(x);
-        const int *restrict pvalues = INTEGER(values);
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              SET_STRING_ELT(ans, j, pto[i]);
-            }
-          }
-        }
-      } break;
-      case REALSXP: {
-        const double *restrict px = REAL(x);
-        const double *restrict pvalues = REAL(values);
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              SET_STRING_ELT(ans, j, pto[i]);
-            }
-          }
-        }
-      } break;
-      case CPLXSXP: {
-        const Rcomplex *restrict px = COMPLEX(x);
-        const Rcomplex *restrict pvalues = COMPLEX(values);
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (EQUAL_CPLX(px[j],pvalues[i])) {
-              SET_STRING_ELT(ans, j, pto[i]);
-            }
-          }
-        }
-      } break;
-      case STRSXP: {
-        const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : values);
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (px[j]==pvalues[i]) {
-              SET_STRING_ELT(ans, j, pto[i]);
-            }
-          }
-        }
-      } break;
-      case VECSXP: {
-        const SEXP *restrict px = SEXPPTR_RO(x);
-        const SEXP *restrict pvalues = SEXPPTR_RO(values);
-        for (ssize_t j=0; j<len_x; ++j) {
-          for (ssize_t i=0; i<len_values; ++i) {
-            if (R_compute_identical(px[j], pvalues[i], 0)) {
-              SET_STRING_ELT(ans, j, pto[i]);
-            }
-          }
-        }
-      } break;
+        VSWITCH_LIST_INPUT_SERIAL(LGLSXP, int, LOGICAL(x), LOGICAL(values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(INTSXP, int, INTEGER(x), INTEGER(values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(REALSXP, double, REAL(x), REAL(values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(CPLXSXP, Rcomplex, COMPLEX(x), COMPLEX(values), EQUAL_CPLX(px[j], pvalues[i]))
+        VSWITCH_LIST_INPUT_SERIAL(STRSXP, SEXP, STRING_PTR_RO(utfcon ? xans : x), STRING_PTR_RO(utfcon ? vans : values), px[j]==pvalues[i])
+        VSWITCH_LIST_INPUT_SERIAL(VECSXP, SEXP, SEXPPTR_RO(x), SEXPPTR_RO(values), R_compute_identical(px[j], pvalues[i], 0))
       default:
         error("Type %s is not supported for argument 'x'.", type2char(type_x));
       }
+      #undef OUT_DEFAULT
+      #undef OUT_SET
     } break;
     default:
       error("Type %s is not supported for argument 'outputs'.", type2char(type_o));

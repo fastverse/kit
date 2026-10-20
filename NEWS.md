@@ -2,6 +2,8 @@
 
 ### Bug Fixes
 
+- Evaluate the internal `order()`/`sort()` calls in `topn`, `psort`, and `charToFact` in the base environment. A caller-defined `order`/`sort` could previously shadow them and make `topn` return out-of-bounds indices or `psort`/`charToFact` error or sort incorrectly (#74).
+
 - Fix shared-memory lifetime and error-path safety in `shareData()`: POSIX mapping names are now owned copies, long-vector lengths, allocation sizes, and existing mapping sizes are checked, finalizer verbosity is per mapping, failed mappings release descriptors, mappings, and temporary state, reader cleanup is unwind-safe, and finalizers verify mapping identity before unlinking owned names (#55).
 
 - Fix segfault in `vswitch`/`nswitch` on length-0 character input: the character encoding path dereferenced element 0 without checking length. The encoding check is now skipped for empty `x` and `isMixEnc`/`enc2UTF8` handle empty input safely, with no overhead on the fast path (#66).
@@ -18,9 +20,17 @@
 
 ### Notes
 
+- Reduce peak memory in `funique`, `fduplicated`, `uniqLen`, `psort`, and `charToFact` by starting duplicate hash tables at 256 slots and growing them on demand (4x, capped at the previous full-size table) instead of allocating the full table up front. Rehashing re-reads the source values, so results are unchanged; inputs with few unique values use much less memory, while peak memory can be higher at growth boundaries for high-cardinality inputs (#74).
+
+- Speed up `vswitch` for string and list outputs by scanning `x` once instead of once per value and fusing default/`na` writes into the match pass; single-value lookups also avoid a separate initialization pass. Atomic outputs keep the value-major vectorized pass, with the first value fused into initialization. Last-match-wins behavior for duplicate `values` is preserved, mixed output item types now fail with a clear error, and list-output scratch arrays are heap allocated so large outputs no longer exhaust the C stack (#74).
+
+- Bound the `topn` linear candidate scan: input ordered opposite to `decreasing` made every element replace the current worst and rescan all `n` candidates, so `n = 1500` on 2e7 elements took ~14.5 s. The scan now falls back to the existing radix `order()` path once its rescan work exceeds a few passes over the input, reducing that case to ~0.11 s while leaving random and small-`n` inputs on the fast path (#74).
+
+- Serialize `shareData` payloads directly to a raw vector instead of through a raw connection, removing one full-payload copy on write and connection overhead on read; the shared-memory format is unchanged (#74).
+
 - Reduce `topn` memory use on long vectors (more than `INT_MAX` elements): the long path allocated a full-length radix `order()` index (~8 x length bytes, ~17 GB for a 2^31-element input, only to return n indices) and is replaced by a bounded heap of the n best (value, index) entries, so memory is now proportional to n; unmaterialized ALTREP inputs are read element-wise without being materialized. The result is unchanged — double indices like `order(vec, method="radix", na.last=TRUE)[1:n]`, ties and missing values keeping input order regardless of `hasna` — and `decreasing=TRUE` now works on such inputs, where the `order()` path errored with base R's "long vectors not supported" (#83).
 
-- Document the `shareData`/`getData`/`clearData` contract in `?shareData`: deep-copy cost (object serialized twice plus a memory-map copy, not a pointer), single-read `getData`, lifetime and cleanup semantics, platform differences, and a two-session `\dontrun` example; cross-links the zero-copy request (#43) (#60).
+- Document the `shareData`/`getData`/`clearData` contract in `?shareData`: deep-copy cost (object serialized once, then copied into and out of shared memory, not a pointer), single-read `getData`, lifetime and cleanup semantics, platform differences, and a two-session `\dontrun` example; cross-links the zero-copy request (#43) (#60).
 
 - Clean up `DESCRIPTION` metadata: bump `Depends` to `R (>= 3.5.0)` to match the `DATAPTR_RO` fallback in `src/kit.h` (`...length()`, `R_RegisterCCallable`/`STRING_PTR_RO` need newer than 3.1), use `ByteCompile: yes` per WRE, drop `Repository: CRAN` from the dev tree, and add `Config/Needs/website: pkgdown` (`Suggests` already covers `data.table`/`tibble`/`tinytest` used in tests and vignette) (#58).
 

@@ -202,3 +202,27 @@ x11 = rep(x10,3L)
 
   expect_identical(psort(x11,decreasing = TRUE,c.locale = FALSE), sort(x11,decreasing = TRUE), info="psort-0020.074")
 
+# issue #74: internal sort() must resolve in base, not in the caller's frame.
+local({
+  sort <- function(x, ...) rev(x)
+  expect_identical(psort(c("b", "a", "c", "a"), c.locale = FALSE),
+                   c("a", "a", "b", "c"),
+                   info = "psort-0074.001 caller-defined sort ignored")
+  expect_identical(psort(c("b", "a", "c", "a"), decreasing = TRUE, c.locale = FALSE),
+                   c("c", "b", "a", "a"),
+                   info = "psort-0074.002 caller-defined sort ignored, decreasing")
+})
+
+# issue #74: the unique table grows past its initial 256 slots.
+local({
+  set.seed(74)
+  x <- sample(paste0("s", 1:800), 20000L, TRUE)
+  expect_identical(psort(x), sort(x), info = "psort-0074.grow")
+  expect_identical(psort(x, decreasing = TRUE), sort(x, decreasing = TRUE),
+                   info = "psort-0074.grow-decreasing")
+  y <- sample(c(NA_character_, paste0("s", 1:800)), 20000L, TRUE)
+  expect_identical(psort(y), sort(y, na.last = NA), info = "psort-0074.grow-na")
+  expect_identical(psort(y, decreasing = TRUE), sort(y, decreasing = TRUE, na.last = NA),
+                   info = "psort-0074.grow-na-decreasing")
+})
+

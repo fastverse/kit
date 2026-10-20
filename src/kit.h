@@ -66,6 +66,234 @@
 #define C_ISNAN(x, y) (B_ISNAN(x, y) || (N_ISNAN(x, y) && x == y))
 #define REQUAL(x, y)  (N_ISNAN(x, y) ? (x == y) : (B_IsNA(x, y) || B_IsNaN(x, y)))
 #define CEQUAL(x, y) ((N_ISNAN(x.r, x.i) && N_ISNAN(y.r, y.i)) ? (x.r == y.r && x.i == y.i) : (C_IsNA(x) ? C_IsNA(y) : (C_IsNA(y) ? 0 : (C_ISNAN(x.r, y.r) && C_ISNAN(x.i, y.i)))))
+
+union uno { double d; unsigned int u[2]; };
+
+/*
+ * Growable duplicate tables. Each table stores 1-based input indices in an
+ * open-addressed int array and grows at 75% load. Rehashing re-reads the
+ * source vector, so the table itself stays 4 bytes per slot.
+ */
+
+typedef struct {
+  const void *px;
+  R_xlen_t len_i;
+  R_xlen_t len_x;
+} kit_row_ctx;
+
+typedef int *(*kit_row_grow_fn)(const kit_row_ctx *ctx, int *h, size_t M, size_t M2, int K2);
+
+static inline size_t kit_hash_rows_lgl(const int *px, const R_xlen_t i,
+                                       const R_xlen_t len_i, const R_xlen_t len_x,
+                                       const int K) {
+  size_t id = 0;
+  for (R_xlen_t j = 0; j < len_x; ++j) {
+    id ^= ((unsigned)(j+1) * ((px[i+j*len_i] == NA_LOGICAL) ? 2U : (size_t) px[i+j*len_i]))*97*(j+1);
+  }
+  return HASH(id, K);
+}
+
+static inline size_t kit_hash_rows_int(const int *px, const R_xlen_t i,
+                                       const R_xlen_t len_i, const R_xlen_t len_x,
+                                       const int K) {
+  R_xlen_t key = 0;
+  for (R_xlen_t j = 0; j < len_x; ++j) {
+    key ^= HASH(((px[i+j*len_i] == NA_INTEGER) ? 0 : px[i+j*len_i]), K)*97*(j+1);
+  }
+  return HASH(key, K);
+}
+
+static inline size_t kit_hash_rows_int_raw(const int *px, const R_xlen_t i,
+                                           const R_xlen_t len_i, const R_xlen_t len_x,
+                                           const int K) {
+  R_xlen_t key = 0;
+  for (R_xlen_t j = 0; j < len_x; ++j) {
+    key ^= HASH(px[i+j*len_i], K)*97*(j+1);
+  }
+  return HASH(key, K);
+}
+
+static inline size_t kit_hash_rows_real(const double *px, const R_xlen_t i,
+                                        const R_xlen_t len_i, const R_xlen_t len_x,
+                                        const int K) {
+  R_xlen_t key = 0;
+  union uno tpv;
+  for (R_xlen_t j = 0; j < len_x; ++j) {
+    tpv.d = px[i+j*len_i];
+    key ^= HASH(tpv.u[0] + tpv.u[1], K)*97*(j+1);
+  }
+  tpv.d = key;
+  return HASH(tpv.u[0] + tpv.u[1], K);
+}
+
+static inline size_t kit_hash_rows_cplx(const Rcomplex *px, const R_xlen_t i,
+                                        const R_xlen_t len_i, const R_xlen_t len_x,
+                                        const int K) {
+  R_xlen_t key = 0;
+  unsigned int u;
+  union uno tpv;
+  Rcomplex tmp;
+  for (R_xlen_t j = 0; j < len_x; ++j) {
+    tmp.r = (px[i+j*len_i].r == 0.0) ? 0.0 : px[i+j*len_i].r;
+    tmp.i = (px[i+j*len_i].i == 0.0) ? 0.0 : px[i+j*len_i].i;
+    if (C_IsNA(tmp)) {
+      tmp.r = tmp.i = NA_REAL;
+    } else if (C_IsNaN(tmp)) {
+      tmp.r = tmp.i = R_NaN;
+    }
+    tpv.d = tmp.r;
+    u = tpv.u[0] ^ tpv.u[1];
+    tpv.d = tmp.i;
+    u ^= tpv.u[0] ^ tpv.u[1];
+    key ^= HASH(u, K)*97*(j+1);
+  }
+  return HASH(key, K);
+}
+
+static inline size_t kit_hash_rows_str(const SEXP *px, const R_xlen_t i,
+                                       const R_xlen_t len_i, const R_xlen_t len_x,
+                                       const int K) {
+  R_xlen_t key = 0;
+  for (R_xlen_t j = 0; j < len_x; ++j) {
+    key ^= HASH(((intptr_t) px[i+j*len_i] & 0xffffffff), K)*97*(j+1);
+  }
+  return HASH(key, K);
+}
+
+#define KIT_DEFINE_ROW_GROW(name, type, hashfn) \
+static inline int *kit_grow_rows_##name(const kit_row_ctx *ctx, int *h, \
+                                        const size_t M, const size_t M2, \
+                                        const int K2) { \
+  const type *px = (const type*) ctx->px; \
+  int *h2 = (int*) R_Calloc(M2, int); \
+  for (size_t s = 0; s < M; ++s) { \
+    const int e = h[s]; \
+    if (e) { \
+      const int i = e - 1; \
+      size_t id = hashfn(px, i, ctx->len_i, ctx->len_x, K2); \
+      while (h2[id]) { id++; id %= M2; } \
+      h2[id] = e; \
+    } \
+  } \
+  R_Free(h); \
+  return h2; \
+}
+
+KIT_DEFINE_ROW_GROW(lgl, int, kit_hash_rows_lgl)
+KIT_DEFINE_ROW_GROW(int, int, kit_hash_rows_int)
+KIT_DEFINE_ROW_GROW(int_raw, int, kit_hash_rows_int_raw)
+KIT_DEFINE_ROW_GROW(real, double, kit_hash_rows_real)
+KIT_DEFINE_ROW_GROW(cplx, Rcomplex, kit_hash_rows_cplx)
+KIT_DEFINE_ROW_GROW(str, SEXP, kit_hash_rows_str)
+
+#define KIT_GROW_ROWS() do { if (count > M - (M >> 2)) { \
+  size_t Mnew = M << 2; int Knew = K + 2; \
+  if (Mnew > Mbase) { Mnew = Mbase; Knew = Kbase; } \
+  if (Mnew > M) { h = grow(&rowctx, h, M, Mnew, Knew); M = Mnew; K = Knew; } \
+} } while (0)
+static inline int *kit_rehash_int(const int *restrict px, int *restrict h,
+                                  const size_t M, const size_t M2,
+                                  const int K2) {
+  int *restrict h2 = (int*) R_Calloc(M2, int);
+  for (size_t s = 0; s < M; ++s) {
+    const int e = h[s];
+    if (e) {
+      const int i = e - 1;
+      size_t id = (px[i] == NA_INTEGER) ? 0 : HASH(px[i], K2);
+      while (h2[id]) { id++; id %= M2; }
+      h2[id] = e;
+    }
+  }
+  R_Free(h);
+  return h2;
+}
+
+static inline int *kit_rehash_real(const double *restrict px, int *restrict h,
+                                   const size_t M, const size_t M2,
+                                   const int K2) {
+  int *restrict h2 = (int*) R_Calloc(M2, int);
+  union uno tpv;
+  for (size_t s = 0; s < M; ++s) {
+    const int e = h[s];
+    if (e) {
+      const int i = e - 1;
+      tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN : px[i]);
+      size_t id = HASH(tpv.u[0] + tpv.u[1], K2);
+      while (h2[id]) { id++; id %= M2; }
+      h2[id] = e;
+    }
+  }
+  R_Free(h);
+  return h2;
+}
+
+static inline int *kit_rehash_cplx(const Rcomplex *restrict px, int *restrict h,
+                                   const size_t M, const size_t M2,
+                                   const int K2) {
+  int *restrict h2 = (int*) R_Calloc(M2, int);
+  union uno tpv;
+  Rcomplex tmp;
+  for (size_t s = 0; s < M; ++s) {
+    const int e = h[s];
+    if (e) {
+      const int i = e - 1;
+      tmp.r = (px[i].r == 0.0) ? 0.0 : px[i].r;
+      tmp.i = (px[i].i == 0.0) ? 0.0 : px[i].i;
+      if (C_IsNA(tmp)) {
+        tmp.r = tmp.i = NA_REAL;
+      } else if (C_IsNaN(tmp)) {
+        tmp.r = tmp.i = R_NaN;
+      }
+      tpv.d = tmp.r;
+      unsigned int u = tpv.u[0] ^ tpv.u[1];
+      tpv.d = tmp.i;
+      u ^= tpv.u[0] ^ tpv.u[1];
+      size_t id = HASH(u, K2);
+      while (h2[id]) { id++; id %= M2; }
+      h2[id] = e;
+    }
+  }
+  R_Free(h);
+  return h2;
+}
+
+static inline int *kit_rehash_str(const SEXP *restrict px, int *restrict h,
+                                  const size_t M, const size_t M2,
+                                  const int K2) {
+  int *restrict h2 = (int*) R_Calloc(M2, int);
+  for (size_t s = 0; s < M; ++s) {
+    const int e = h[s];
+    if (e) {
+      const int i = e - 1;
+      size_t id = HASH(((intptr_t) px[i] & 0xffffffff), K2);
+      while (h2[id]) { id++; id %= M2; }
+      h2[id] = e;
+    }
+  }
+  R_Free(h);
+  return h2;
+}
+
+#define KIT_GROW_INT()  do { if (count > M - (M >> 2)) { \
+  size_t Mnew = M << 2; int Knew = K + 2; \
+  if (Mnew > Mbase) { Mnew = Mbase; Knew = Kbase; } \
+  if (Mnew > M) { h = kit_rehash_int(px, h, M, Mnew, Knew); M = Mnew; K = Knew; } \
+} } while (0)
+#define KIT_GROW_REAL() do { if (count > M - (M >> 2)) { \
+  size_t Mnew = M << 2; int Knew = K + 2; \
+  if (Mnew > Mbase) { Mnew = Mbase; Knew = Kbase; } \
+  if (Mnew > M) { h = kit_rehash_real(px, h, M, Mnew, Knew); M = Mnew; K = Knew; } \
+} } while (0)
+#define KIT_GROW_CPLX() do { if (count > M - (M >> 2)) { \
+  size_t Mnew = M << 2; int Knew = K + 2; \
+  if (Mnew > Mbase) { Mnew = Mbase; Knew = Kbase; } \
+  if (Mnew > M) { h = kit_rehash_cplx(px, h, M, Mnew, Knew); M = Mnew; K = Knew; } \
+} } while (0)
+#define KIT_GROW_STR()  do { if (count > M - (M >> 2)) { \
+  size_t Mnew = M << 2; int Knew = K + 2; \
+  if (Mnew > Mbase) { Mnew = Mbase; Knew = Kbase; } \
+  if (Mnew > M) { h = kit_rehash_str(px, h, M, Mnew, Knew); M = Mnew; K = Knew; } \
+} } while (0)
 #define STR_DF mkString("data.frame")
 #define MAX(a,b) (((a)>(b))?(a):(b))
 #define IS_LOGICAL(x) (isLogical(x) && XLENGTH(x)==1)
@@ -119,6 +347,5 @@ extern SEXP createMappingObjectR(SEXP MapName, SEXP MapLength, SEXP DataObject, 
 extern SEXP getMappingObjectR(SEXP MapName, SEXP MapLength, SEXP verboseArg);
 extern SEXP clearMappingObjectR(SEXP ext, SEXP verboseArg);
 
-union uno { double d; unsigned int u[2]; };
 bool isMixEnc(SEXP x);
 SEXP enc2UTF8(SEXP x);

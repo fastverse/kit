@@ -76,16 +76,20 @@ SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast) { // move to matrix if poss
     memcpy(INTEGER(mlv)+i*len_i, INTEGER(PROTECT(dupVecIndexOnlyR(px[i]))), (size_t)len_i*sizeof(int));
   }
   UNPROTECT((int)len_x);
-  const size_t n2 = 2U * (size_t) len_i;
   size_t M = 256;
   int K = 8;
-  while (M < n2) {
-    M *= 2;
-    K++;
+  size_t Mbase = 256;
+  int Kbase = 8;
+  const size_t n2 = 2U * (size_t) len_i;
+  while (Mbase < n2) {
+    Mbase *= 2;
+    Kbase++;
   }
   R_xlen_t count = 0;
   int *restrict h = (int*) R_Calloc(M, int);
   const int *restrict v = INTEGER(mlv);
+  kit_row_grow_fn grow = kit_grow_rows_int_raw;
+  kit_row_ctx rowctx = {v, len_i, len_x};
   int *restrict pans = buniq ? (int*) R_Calloc(len_i, int) : LOGICAL(ans);
   size_t id = 0;
   if (buniq) {
@@ -109,6 +113,7 @@ SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast) { // move to matrix if poss
         h[id] = (int) i + 1;
         pans[i]++;
         count++;
+        KIT_GROW_ROWS();
         label2t:;
       }
     } else {
@@ -131,6 +136,7 @@ SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast) { // move to matrix if poss
         h[id] = (int) i + 1;
         pans[i]++;
         count++;
+        KIT_GROW_ROWS();
         label2:;
       }
     }
@@ -170,6 +176,7 @@ SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast) { // move to matrix if poss
       h[id] = (int) i + 1;
       pans[i] = 0;
       count++;
+      KIT_GROW_ROWS();
       label2bt:;
     }
   } else {
@@ -193,6 +200,7 @@ SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast) { // move to matrix if poss
       h[id] = (int) i + 1;
       pans[i] = 0;
       count++;
+      KIT_GROW_ROWS();
       label2b:;
     }
   }
@@ -214,20 +222,26 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
   const R_xlen_t len_i = nrows(x);
   const bool buniq = asLogical(uniq);
   SEXP ans = buniq ? R_NilValue : PROTECT(allocVector(LGLSXP, len_i));
-  const size_t n2 = 2U * (size_t) len_i;
   size_t M = 256;
   int K = 8;
-  while (M < n2) {
-    M *= 2;
-    K++;
+  size_t Mbase = 256;
+  int Kbase = 8;
+  const size_t n2 = 2U * (size_t) len_i;
+  while (Mbase < n2) {
+    Mbase *= 2;
+    Kbase++;
   }
   R_xlen_t count = 0;
   int *restrict h = (int*) R_Calloc(M, int);
   int *restrict pans = buniq ? (int*) R_Calloc(len_i, int) : LOGICAL(ans);
   size_t id = 0;
+  kit_row_grow_fn grow = NULL;
+  kit_row_ctx rowctx = {NULL, len_i, len_x};
   switch(UTYPEOF(x)) {
   case LGLSXP : {
     const int *restrict px = LOGICAL(x);
+    rowctx.px = px;
+    grow = kit_grow_rows_lgl;
     if (buniq) {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
@@ -249,6 +263,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_ROWS();
           labelml2t:;
         }
       } else {
@@ -271,6 +286,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_ROWS();
           labelml2:;
         }
       }
@@ -296,6 +312,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_ROWS();
           labelml2bt:;
         }
       } else {
@@ -319,6 +336,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_ROWS();
           labelml2b:;
         }
       }
@@ -326,6 +344,8 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
   } break;
   case INTSXP : {
     const int *restrict px = INTEGER(x);
+    rowctx.px = px;
+    grow = kit_grow_rows_int;
     if (buniq) {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
@@ -347,6 +367,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_ROWS();
           labelmi2t:;
         }
       } else {
@@ -369,6 +390,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_ROWS();
           labelmi2:;
         }
       }
@@ -394,6 +416,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_ROWS();
           labelmi2bt:;
         }
       } else {
@@ -417,6 +440,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_ROWS();
           labelmi2b:;
         }
       }
@@ -424,6 +448,8 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
   } break;
   case REALSXP : {
     const double *restrict px = REAL(x);
+    rowctx.px = px;
+    grow = kit_grow_rows_real;
     union uno tpv;
     if (buniq) {
       if (pfromLast) {
@@ -448,6 +474,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_ROWS();
           labelmr2t:;
         }
       } else {
@@ -472,6 +499,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_ROWS();
           labelmr2:;
         }
       }
@@ -499,6 +527,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_ROWS();
           labelmr2bt:;
         }
       } else {
@@ -524,6 +553,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_ROWS();
           labelmr2b:;
         }
       }
@@ -531,6 +561,8 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
   } break;
   case CPLXSXP : {
     const Rcomplex *restrict px = COMPLEX(x);
+    rowctx.px = px;
+    grow = kit_grow_rows_cplx;
     unsigned int u;
     union uno tpv;
     Rcomplex tmp;
@@ -566,6 +598,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_ROWS();
           labelmc2t:;
         }
       } else {
@@ -599,6 +632,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_ROWS();
           labelmc2:;
         }
       }
@@ -635,6 +669,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_ROWS();
           labelmc2bt:;
         }
       } else {
@@ -669,6 +704,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_ROWS();
           labelmc2b:;
         }
       }
@@ -676,6 +712,8 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
   } break;
   case STRSXP : {
     const SEXP *restrict px = STRING_PTR_RO(x);
+    rowctx.px = px;
+    grow = kit_grow_rows_str;
     if (buniq) {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
@@ -697,6 +735,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_ROWS();
           labelms2t:;
         }
       } else {
@@ -719,6 +758,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_ROWS();
           labelms2:;
         }
       }
@@ -744,6 +784,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_ROWS();
           labelms2bt:;
         }
       } else {
@@ -767,6 +808,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_ROWS();
           labelms2b:;
         }
       }
@@ -908,22 +950,24 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
   }
   const R_xlen_t n = xlength(x);
   const SEXPTYPE tx = UTYPEOF(x);
-  int K;
-  size_t M;
+  int K = 8;
+  size_t M = 256;
+  size_t Mbase = 256;
+  int Kbase = 8;
   if (tx == INTSXP || tx == STRSXP || tx == REALSXP || tx == CPLXSXP ) {
     if(n >= 1073741824) {
       error("Length of 'x' is too large. (Long vector not supported yet)"); // # nocov
     }
     const size_t n2 = 2U * (size_t) n;
-    M = 256;
-    K = 8;
-    while (M < n2) {
-      M *= 2;
-      K++;
+    while (Mbase < n2) {
+      Mbase *= 2;
+      Kbase++;
     }
   } else if (tx == LGLSXP) {
     M = 4;
     K = 2;
+    Mbase = 4;
+    Kbase = 2;
   } else {
     error("Type %s is not supported.", type2char(tx));
   }
@@ -984,6 +1028,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_INT();
           iblt:;
         }
       } else {
@@ -998,6 +1043,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_INT();
           ibl:;
         }
       }
@@ -1028,6 +1074,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_INT();
           ibldt:;
         }
       } else {
@@ -1043,6 +1090,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i] = 0;
           count++;
+          KIT_GROW_INT();
           ibld:;
         }
       }
@@ -1067,6 +1115,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_REAL();
           rblt:;
         }
       } else {
@@ -1082,6 +1131,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_REAL();
           rbl:;
         }
       }
@@ -1113,6 +1163,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]=0;
           count++;
+          KIT_GROW_REAL();
           rbldt:;
         }
       } else {
@@ -1129,6 +1180,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]=0;
           count++;
+          KIT_GROW_REAL();
           rbld:;
         }
       }
@@ -1165,6 +1217,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_CPLX();
           cblt:;
         }
       } else {
@@ -1190,6 +1243,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_CPLX();
           cbl:;
         }
       }
@@ -1231,6 +1285,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]=0;
           count++;
+          KIT_GROW_CPLX();
           cbldt:;
         }
       } else {
@@ -1257,6 +1312,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]=0;
           count++;
+          KIT_GROW_CPLX();
           cbld:;
         }
       }
@@ -1279,6 +1335,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_STR();
           sblt:;
         }
       } else {
@@ -1293,6 +1350,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]++;
           count++;
+          KIT_GROW_STR();
           sbl:;
         }
       }
@@ -1322,6 +1380,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]=0;
           count++;
+          KIT_GROW_STR();
           sbldt:;
         }
       } else {
@@ -1337,6 +1396,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
           h[id] = (int) i + 1;
           pans[i]=0;
           count++;
+          KIT_GROW_STR();
           sbld:;
         }
       }
@@ -1355,25 +1415,28 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
 SEXP dupVecIndexOnlyR(SEXP x) {
   const R_xlen_t n = xlength(x);
   const SEXPTYPE tx = UTYPEOF(x);
-  int K;
-  size_t M;
+  int K = 8;
+  size_t M = 256;
+  size_t Mbase = 256;
+  int Kbase = 8;
   if (tx == INTSXP || tx == STRSXP || tx == REALSXP || tx == CPLXSXP ) {
     if(n >= 1073741824) {
       error("Length of 'x' is too large. (Long vector not supported yet)"); // # nocov
     }
     const size_t n2 = 2U * (size_t) n;
-    M = 256;
-    K = 8;
-    while (M < n2) {
-      M *= 2;
-      K++;
+    while (Mbase < n2) {
+      Mbase *= 2;
+      Kbase++;
     }
   } else if (tx == LGLSXP) {
     M = 4;
     K = 2;
+    Mbase = 4;
+    Kbase = 2;
   } else {
     error("Type %s is not supported.", type2char(tx)); // # nocov
   }
+  size_t count = 0;
   int *restrict h = (int*)R_Calloc(M, int);
   SEXP ans_i = PROTECT(allocVector(INTSXP, n));
   int *restrict pans_i = INTEGER(ans_i);
@@ -1408,7 +1471,9 @@ SEXP dupVecIndexOnlyR(SEXP x) {
         id++; id %= M; // # nocov
       }
       h[id] = (int) i + 1;
-      pans_i[i] = h[id];
+      pans_i[i] = (int) i + 1;
+      count++;
+      KIT_GROW_INT();
       ibl:;
     }
   } break;
@@ -1427,7 +1492,9 @@ SEXP dupVecIndexOnlyR(SEXP x) {
         id++; id %= M;
       }
       h[id] = (int) i + 1;
-      pans_i[i] = h[id];
+      pans_i[i] = (int) i + 1;
+      count++;
+      KIT_GROW_REAL();
       rbl:;
     }
   } break;
@@ -1458,7 +1525,9 @@ SEXP dupVecIndexOnlyR(SEXP x) {
         id++; id %= M; // # nocov
       }
       h[id] = (int) i + 1;
-      pans_i[i] = h[id];
+      pans_i[i] = (int) i + 1;
+      count++;
+      KIT_GROW_CPLX();
       cbl:;
     }
   } break;
@@ -1475,7 +1544,9 @@ SEXP dupVecIndexOnlyR(SEXP x) {
         id++; id %= M; // # nocov
       }
       h[id] = (int) i + 1;
-      pans_i[i] = h[id];
+      pans_i[i] = (int) i + 1;
+      count++;
+      KIT_GROW_STR();
       sbl:;
     }
   } break;

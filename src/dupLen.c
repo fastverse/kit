@@ -70,16 +70,20 @@ SEXP dupLenDataFrameR(SEXP x) {
     memcpy(INTEGER(mlv)+i*len_i, INTEGER(PROTECT(dupVecIndexOnlyR(px[i]))), (size_t)len_i*sizeof(int));
   }
   UNPROTECT((int)len_x);
-  const size_t n2 = 2U * (size_t) len_i;
   size_t M = 256;
   int K = 8;
-  while (M < n2) {
-    M *= 2;
-    K++;
+  size_t Mbase = 256;
+  int Kbase = 8;
+  const size_t n2 = 2U * (size_t) len_i;
+  while (Mbase < n2) {
+    Mbase *= 2;
+    Kbase++;
   }
   R_xlen_t count = 0;
   int *restrict h = (int*) R_Calloc(M, int);
   const int *restrict v = INTEGER(mlv);
+  kit_row_grow_fn grow = kit_grow_rows_int_raw;
+  kit_row_ctx rowctx = {v, len_i, len_x};
   size_t id = 0;
   for (R_xlen_t i = 0; i < len_i; ++i) {
     R_xlen_t key = 0;
@@ -99,6 +103,7 @@ SEXP dupLenDataFrameR(SEXP x) {
     }
     h[id] = (int) i + 1;
     count++;
+    KIT_GROW_ROWS();
     label2:;
   }
   R_Free(h);
@@ -113,19 +118,25 @@ SEXP dupLenDataFrameR(SEXP x) {
 SEXP dupLenMatrixR(SEXP x) {
   const R_xlen_t len_x = ncols(x);
   const R_xlen_t len_i = nrows(x);
-  const size_t n2 = 2U * (size_t) len_i;
   size_t M = 256;
   int K = 8;
-  while (M < n2) {
-    M *= 2;
-    K++;
+  size_t Mbase = 256;
+  int Kbase = 8;
+  const size_t n2 = 2U * (size_t) len_i;
+  while (Mbase < n2) {
+    Mbase *= 2;
+    Kbase++;
   }
   R_xlen_t count = 0;
   int *restrict h = (int*) R_Calloc(M, int);
   size_t id = 0;
+  kit_row_grow_fn grow = NULL;
+  kit_row_ctx rowctx = {NULL, len_i, len_x};
   switch(UTYPEOF(x)) {
   case LGLSXP : {
     const int *restrict px = LOGICAL(x);
+    rowctx.px = px;
+    grow = kit_grow_rows_lgl;
     for (R_xlen_t i = 0; i < len_i; ++i) {
       id = 0;
       for (R_xlen_t j = 0; j < len_x; ++j) {
@@ -144,11 +155,14 @@ SEXP dupLenMatrixR(SEXP x) {
       }
       h[id] = (int) i + 1;
       count++;
+      KIT_GROW_ROWS();
       labelml2:;
     }
   } break;
   case INTSXP : {
     const int *restrict px = INTEGER(x);
+    rowctx.px = px;
+    grow = kit_grow_rows_int;
     for (R_xlen_t i = 0; i < len_i; ++i) {
       R_xlen_t key = 0;
       for (R_xlen_t j = 0; j < len_x; ++j) {
@@ -167,11 +181,14 @@ SEXP dupLenMatrixR(SEXP x) {
       }
       h[id] = (int) i + 1;
       count++;
+      KIT_GROW_ROWS();
       labelmi2:;
     }
   } break;
   case REALSXP : {
     const double *restrict px = REAL(x);
+    rowctx.px = px;
+    grow = kit_grow_rows_real;
     union uno tpv;
     for (R_xlen_t i = 0; i < len_i; ++i) {
       R_xlen_t key = 0;
@@ -193,11 +210,14 @@ SEXP dupLenMatrixR(SEXP x) {
       }
       h[id] = (int) i + 1;
       count++;
+      KIT_GROW_ROWS();
       labelmr2:;
     }
   } break;
   case CPLXSXP : {
     const Rcomplex *restrict px = COMPLEX(x);
+    rowctx.px = px;
+    grow = kit_grow_rows_cplx;
     unsigned int u;
     union uno tpv;
     Rcomplex tmp;
@@ -230,11 +250,14 @@ SEXP dupLenMatrixR(SEXP x) {
       }
       h[id] = (int) i + 1;
       count++;
+      KIT_GROW_ROWS();
       labelmc2:;
     }
   } break;
   case STRSXP : {
     const SEXP *restrict px = STRING_PTR_RO(x);
+    rowctx.px = px;
+    grow = kit_grow_rows_str;
     for (R_xlen_t i = 0; i < len_i; ++i) {
       R_xlen_t key = 0;
       for (R_xlen_t j = 0; j < len_x; ++j) {
@@ -253,6 +276,7 @@ SEXP dupLenMatrixR(SEXP x) {
       }
       h[id] = (int) i + 1;
       count++;
+      KIT_GROW_ROWS();
       labelms2:;
     }
   } break;
@@ -308,18 +332,18 @@ SEXP dupLenVecR(SEXP x) {
   }
   const R_xlen_t n = xlength(x);
   const SEXPTYPE tx = UTYPEOF(x);
-  int K;
-  size_t M;
+  int K = 8;
+  size_t M = 256;
+  size_t Mbase = 256;
+  int Kbase = 8;
   if (tx == INTSXP || tx == STRSXP || tx == REALSXP || tx == CPLXSXP ) {
     if(n >= 1073741824) {
       error("Length of 'x' is too large. (Long vector not supported yet)"); // # nocov
     }
     const size_t n2 = 2U * (size_t) n;
-    M = 256;
-    K = 8;
-    while (M < n2) {
-      M *= 2;
-      K++;
+    while (Mbase < n2) {
+      Mbase *= 2;
+      Kbase++;
     }
   } else {
     error("Type %s is not supported.", type2char(tx)); // # nocov
@@ -340,6 +364,7 @@ SEXP dupLenVecR(SEXP x) {
       }
       h[id] = (int) i + 1;
       count++;
+      KIT_GROW_INT();
       ibl:;
     }
   } break;
@@ -358,6 +383,7 @@ SEXP dupLenVecR(SEXP x) {
       }
       h[id] = (int) i + 1;
       count++;
+      KIT_GROW_REAL();
       rbl:;
     }
   } break;
@@ -388,6 +414,7 @@ SEXP dupLenVecR(SEXP x) {
       }
       h[id] = (int) i + 1;
       count++;
+      KIT_GROW_CPLX();
       cbl:;
     }
   } break;
@@ -404,6 +431,7 @@ SEXP dupLenVecR(SEXP x) {
       }
       h[id] = (int) i + 1;
       count++;
+      KIT_GROW_STR();
       sbl:;
     }
   } break;

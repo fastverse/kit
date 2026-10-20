@@ -215,17 +215,19 @@ static SEXP rsortrev (SEXP x) {
 
 static SEXP dupVecSort(SEXP x) {
   const R_xlen_t n = xlength(x);
-  int K =8;
+  int K = 8;
   size_t M = 256;
+  size_t Mbase = 256;
+  int Kbase = 8;
   const size_t n2 = 2U * (size_t) n;
-  while (M < n2) {
-    M *= 2;
-    K++;
+  while (Mbase < n2) {
+    Mbase *= 2;
+    Kbase++;
   }
   R_xlen_t count = 0;
   size_t id = 0;
-  int *restrict h = (int*)calloc(M, sizeof(int));
-  int *restrict pans = (int*)calloc(n, sizeof(int));
+  int *restrict h = (int*)R_Calloc(M, int);
+  int *restrict pans = (int*)R_Calloc(n, int);
   const SEXP *restrict px = STRING_PTR_RO(x);
   for (int i = 0; i < n; ++i) {
     id = HASHSTR(px[i]);
@@ -239,9 +241,10 @@ static SEXP dupVecSort(SEXP x) {
     h[id] = (int) i + 1;
     pans[i]++;
     count++;
+    KIT_GROW_STR();
     sbl:;
   }
-  free(h);
+  R_Free(h);
   SEXP indx = PROTECT(allocVector(STRSXP, count));
   R_xlen_t ct = 0;
   for (int i = 0; ct < count; ++i) {
@@ -249,7 +252,7 @@ static SEXP dupVecSort(SEXP x) {
       SET_STRING_ELT(indx, ct++, px[i]);
     }
   }
-  free(pans);
+  R_Free(pans);
   UNPROTECT(1);
   return indx;
 }
@@ -289,6 +292,7 @@ static inline int getIndex(SEXP ptr, const SEXP *restrict cmp, int *lkpTbl) {
   }
 }
 
+/* Evaluate in base so caller-defined sort()/order() cannot shadow these calls. */
 static SEXP callToSort (SEXP x, const char* method, SEXP env) {
   SEXP call = PROTECT(allocVector(LANGSXP, 4));
   SETCAR(call, STR_SORT);
@@ -305,7 +309,7 @@ static SEXP callToSort (SEXP x, const char* method, SEXP env) {
   SETCAR(s, ScalarLogical(0));
   SET_TAG(s, STR_NALAST);
   
-  SEXP out = PROTECT(eval(call, env));
+  SEXP out = PROTECT(eval(call, R_BaseEnv));
   UNPROTECT(3);
   return out;
 }
@@ -330,7 +334,7 @@ static SEXP callToSort2 (SEXP x, const char* method, const int desc, const int n
   SETCAR(s, ScalarLogical(desc));
   SET_TAG(s, STR_DECREA);
   
-  SEXP out = PROTECT(eval(call, env));
+  SEXP out = PROTECT(eval(call, R_BaseEnv));
   UNPROTECT(3);
   return out;
 }
@@ -355,7 +359,7 @@ SEXP callToOrder (SEXP x, const char* method, bool desc, bool na, SEXP env) {
   SETCAR(s, ScalarLogical(desc));
   SET_TAG(s, STR_DECREA);
   
-  SEXP out = PROTECT(eval(call, env));
+  SEXP out = PROTECT(eval(call, R_BaseEnv));
   UNPROTECT(3);
   return out;
 }

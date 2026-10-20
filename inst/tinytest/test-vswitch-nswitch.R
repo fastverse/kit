@@ -910,3 +910,47 @@ enc2 = enc2utf8(enc1)
 
   expect_identical(nswitch(rep(as.numeric(1:4), each = 2), 1, as.character(1:8), 2, as.character(11:18), 3, as.character(21:28), 4, as.character(31:38)), vswitch(x = rep(as.numeric(1:4), each = 2), values = c(1,2,3,4), outputs = list(as.character(1:8),as.character(11:18),as.character(21:28),as.character(31:38))), info="nswitch-0019.070")
 
+# issue #74: fuse default initialization into the matching pass.
+expect_identical(vswitch(c(1L, 2L, 3L), c(1L, 1L, 2L), c(10L, 20L, 30L)),
+                 c(20L, 30L, NA_integer_), info="vswitch-0074.last-wins")
+expect_identical(vswitch(c(1L, 2L, 3L), c(1L, 1L, 2L), list(10L, 20L, 30L)),
+                 c(20L, 30L, NA_integer_), info="vswitch-0074.last-wins-list")
+expect_identical(vswitch(c(1L, 2L, 3L, NA_integer_), c(1L, 2L), c(10L, 20L), 99L),
+                 c(10L, 20L, 99L, 99L), info="vswitch-0074.default")
+expect_identical(vswitch(c(1L, 2L, 3L, 4L), c(1L, 2L), c(10L, 20L), 91:94),
+                 c(10L, 20L, 93L, 94L), info="vswitch-0074.default-vector")
+expect_identical(vswitch(c(1L, 2L), c(1L, 2L), list(11:12, 21:22)),
+                 c(11L, 22L), info="vswitch-0074.output-vector")
+expect_identical(vswitch(list(1L, NULL, 2L), list(1L, 2L),
+                         list(as.list(11L), as.list(22L))),
+                 list(11L, NULL, 22L), info="vswitch-0074.output-list")
+xf <- factor(c("a", "b", "a")); vf <- factor(c("a", "b"))
+of <- list(factor("x", levels = c("x", "y")), factor("y", levels = c("x", "y")))
+expect_identical(vswitch(xf, vf, of),
+                 factor(c("x", "y", "x"), levels = c("x", "y")),
+                 info="vswitch-0074.factor")
+set.seed(74)
+x <- sample(1:20, 2000L, TRUE)
+expect_identical(vswitch(x, 1:20, as.list(101:120), nThread = 2L),
+                 vswitch(x, 1:20, as.list(101:120), nThread = 1L),
+                 info="vswitch-0074.openmp")
+expect_error(vswitch(c(1L, 1L), c(1L, 2L), list(1L, 2)),
+             pattern = "Items of 'outputs' must have the same type",
+             fixed = TRUE, info="vswitch-0074.output-type")
+local({
+  set.seed(74)
+  for (k in 1:10) {
+    n <- sample(c(0L, 1L, 10L, 100L), 1)
+    vals <- sample(c(NA_integer_, 1:5), sample(1:6, 1), TRUE)
+    x <- sample(c(NA_integer_, 1:5), n, TRUE)
+    out <- sample(100:200, length(vals), TRUE)
+    expected <- rep(NA_integer_, n)
+    for (i in seq_along(vals)) {
+      idx <- if (is.na(vals[i])) which(is.na(x)) else which(x == vals[i])
+      expected[idx] <- out[i]
+    }
+    expect_identical(vswitch(x, vals, out, nThread = 2L), expected,
+                     info="vswitch-0074.random")
+  }
+})
+

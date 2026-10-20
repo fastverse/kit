@@ -79,21 +79,15 @@ checkVerbose = function(verbose) {
 shareData = function(data, map_name, verbose=FALSE) {
   map_name = shmName(map_name)
   verbose = checkVerbose(verbose)
-  conn = rawConnection(raw(0L), "w")
-  on.exit(close(conn), add = TRUE)
-  serialize(data, conn)
-  seek(conn, 0L)
+  # raw serialization skips the extra full-payload connection copy (#74)
   .Call(
     "CcreateMappingObjectR", map_name, paste0(map_name,"_key"),
-    rawConnectionValue(conn), verbose
+    serialize(data, NULL), verbose
   )
 }
 
 getData = function(map_name, verbose=FALSE) {
   map_name = shmName(map_name)
   verbose = checkVerbose(verbose)
-  output = .Call("CgetMappingObjectR", map_name, paste0(map_name,"_key"), verbose)
-  conn = rawConnection(output,"r")
-  on.exit(close(conn), add = TRUE)
-  unserialize(conn)
+  unserialize(.Call("CgetMappingObjectR", map_name, paste0(map_name,"_key"), verbose))
 }

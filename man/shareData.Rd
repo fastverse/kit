@@ -18,7 +18,7 @@ clearData(x, verbose=FALSE)
   \item{verbose}{ A logical value \code{TRUE} or \code{FALSE} to provide or not information to the user.}
 }
 \details{
-\code{shareData} is a deep copy, not a pointer: the object is serialized into a raw vector in the sharing session and that raw vector is copied into a shared memory object. \code{getData} copies the raw vector back into the reading session and unserializes it. The full object is thus serialized twice and copied once, which for large objects dominates the cost of the transfer.
+\code{shareData} is a deep copy, not a pointer: the object is serialized into a raw vector in the sharing session and that raw vector is copied into a shared memory object. \code{getData} copies the raw vector back into the reading session and unserializes it. The full object is thus serialized and unserialized once and copied twice (into and out of shared memory), which for large objects dominates the cost of the transfer.
 
 The shared object can be read once: \code{getData} unlinks the memory map as soon as it has read the data, so calling \code{getData} again with the same \code{map_name} fails.
 

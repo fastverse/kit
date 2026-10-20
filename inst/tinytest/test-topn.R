@@ -411,3 +411,44 @@ x7 = seq.int(1e4)
 
   expect_identical(topn(as.numeric(x7),1e4,decreasing=FALSE), order(as.numeric(x7), decreasing=FALSE), info="topn-0001.131")
 
+# issue #74: internal order() must resolve in base, not in the caller's frame.
+local({
+  order <- function(...) seq_along(..1)
+  expect_identical(topn(seq_len(3000), 2001L, decreasing = TRUE), 3000:1000,
+                   info = "topn-0074.001 caller-defined order ignored")
+})
+
+# issue #74: adversarial ordered input must fall back to the radix order() path.
+adv <- seq_len(1e5)
+expect_identical(topn(adv, 1500L, decreasing = TRUE, hasna = FALSE),
+                 order(adv, decreasing = TRUE)[1:1500],
+                 info = "topn-0074.002 fallback n=1500")
+expect_identical(topn(adv, 1501L, decreasing = TRUE, hasna = FALSE)[1:1500],
+                 topn(adv, 1500L, decreasing = TRUE, hasna = FALSE),
+                 info = "topn-0074.003 fallback/radix boundary")
+expect_identical(typeof(topn(adv, 1500L, decreasing = TRUE, hasna = FALSE)),
+                 "integer", info = "topn-0074.004 fallback output type")
+
+dbl <- c(seq_len(1e5) + 0.5, NA_real_, NaN)
+expect_identical(topn(dbl, 1500L, decreasing = TRUE, hasna = TRUE),
+                 order(dbl, decreasing = TRUE, na.last = TRUE)[1:1500],
+                 info = "topn-0074.005 fallback doubles with NA/NaN")
+
+rev_adv <- rev(seq_len(1e5))
+expect_identical(topn(rev_adv, 2000L, decreasing = FALSE, hasna = FALSE),
+                 order(rev_adv, decreasing = FALSE)[1:2000],
+                 info = "topn-0074.006 fallback ascending")
+
+ties <- rep(c(2L, 1L, 2L, NA_integer_), length.out = 1e5)
+expect_identical(topn(ties, 1500L, decreasing = TRUE, hasna = TRUE),
+                 order(ties, decreasing = TRUE, na.last = TRUE)[1:1500],
+                 info = "topn-0074.007 fallback ties/NA")
+
+# Worst case must not stay O(len1 * len0): 4e6 monotone elements take ~3 s
+# with the unbounded scan and well under 1 s with the radix fallback.
+t0 <- proc.time()[["elapsed"]]
+bounded <- topn(seq_len(4e6), 1500L, decreasing = TRUE, hasna = FALSE)
+elapsed <- proc.time()[["elapsed"]] - t0
+expect_identical(bounded, 4e6:3998501, info = "topn-0074.008 bounded adversarial result")
+expect_true(elapsed < 1.5, info = "topn-0074.009 bounded adversarial time")
+

@@ -623,3 +623,78 @@ x6 = data.frame(a = rep(seq.POSIXt(as.POSIXct("2020-01-01"),as.POSIXct("2020-01-
 
   expect_identical(uniqLen(structure(5L, levels = "a", class = "factor")), 1L, info="uniqLen-0018.039")
 
+# issue #74: duplicate tables grow past their initial 256 slots / 192 distinct values.
+local({
+  set.seed(74)
+  n <- 5000L
+  xs <- list(
+    sample(c(NA_integer_, -1000:1000), n, TRUE),
+    sample(c(NA_real_, NaN, 0, runif(2000)), n, TRUE),
+    complex(real = sample(c(NA_real_, NaN, runif(1000)), n, TRUE),
+            imaginary = sample(c(NA_real_, NaN, runif(1000)), n, TRUE)),
+    sample(c(NA_character_, paste0("s", 1:800)), n, TRUE),
+    sample(c(NA, TRUE, FALSE), n, TRUE)
+  )
+  for (x in xs) {
+    expect_identical(funique(x), unique(x), info = "funique-0074.grow")
+    expect_identical(funique(x, fromLast = TRUE), unique(x, fromLast = TRUE),
+                     info = "funique-0074.grow-fromLast")
+    expect_identical(fduplicated(x), duplicated(x), info = "fduplicated-0074.grow")
+    expect_identical(fduplicated(x, fromLast = TRUE),
+                     duplicated(x, fromLast = TRUE), info = "fduplicated-0074.grow-fromLast")
+    expect_identical(uniqLen(x), length(unique(x)), info = "uniqLen-0074.grow")
+  }
+})
+
+# issue #74: matrix/data.frame row tables also start small and grow.
+local({
+  set.seed(74)
+  nr <- 5000L
+  nc <- 3L
+  xs <- list(
+    matrix(sample(c(NA_integer_, -200:200), nr * nc, TRUE), nr, nc),
+    matrix(sample(c(0, runif(50)), nr * nc, TRUE), nr, nc),
+    matrix(complex(real = sample(round(runif(30), 3), nr * nc, TRUE),
+                   imaginary = sample(round(runif(30), 3), nr * nc, TRUE)), nr, nc),
+    matrix(sample(c(NA_character_, paste0("s", 1:800)), nr * nc, TRUE), nr, nc),
+    matrix(sample(c(NA, TRUE, FALSE), nr * nc, TRUE), nr, nc),
+    # >192 distinct rows to grow the logical and complex row tables; NA/NaN
+    # entries exercise their rehash normalization.
+    unname(as.matrix(expand.grid(rep(list(c(FALSE, TRUE, NA)), 5)))),
+    unname(as.matrix(expand.grid(rep(list(c(0+0i, 1+0i, NA_complex_,
+                                             complex(real = NaN, imaginary = NaN),
+                                             0+1i)), 4))))
+  )
+  for (x in xs) {
+    expect_identical(funique(x), unique(x), info = "funique-0074.grow-matrix")
+    expect_identical(funique(x, fromLast = TRUE), unique(x, fromLast = TRUE),
+                     info = "funique-0074.grow-matrix-fromLast")
+    expect_identical(fduplicated(x), as.vector(duplicated(x)),
+                     info = "fduplicated-0074.grow-matrix")
+    expect_identical(fduplicated(x, fromLast = TRUE),
+                     as.vector(duplicated(x, fromLast = TRUE)),
+                     info = "fduplicated-0074.grow-matrix-fromLast")
+    expect_identical(uniqLen(x), nrow(unique(x)), info = "uniqLen-0074.grow-matrix")
+  }
+  df <- data.frame(
+    a = sample(c(NA_integer_, -100:100), nr, TRUE),
+    b = sample(c(NA_character_, paste0("s", 1:200)), nr, TRUE),
+    c = sample(c(NA, TRUE, FALSE), nr, TRUE),
+    d = factor(sample(c("x", "y", NA), nr, TRUE)),
+    e = sample(c(0, runif(20)), nr, TRUE),
+    stringsAsFactors = FALSE
+  )
+  a <- funique(df); b <- unique(df)
+  rownames(a) <- rownames(b) <- NULL
+  expect_identical(a, b, info = "funique-0074.grow-df")
+  a <- funique(df, fromLast = TRUE); b <- unique(df, fromLast = TRUE)
+  rownames(a) <- rownames(b) <- NULL
+  expect_identical(a, b, info = "funique-0074.grow-df-fromLast")
+  expect_identical(fduplicated(df), duplicated(df),
+                   info = "fduplicated-0074.grow-df")
+  expect_identical(fduplicated(df, fromLast = TRUE),
+                   duplicated(df, fromLast = TRUE),
+                   info = "fduplicated-0074.grow-df-fromLast")
+  expect_identical(uniqLen(df), nrow(unique(df)), info = "uniqLen-0074.grow-df")
+})
+
