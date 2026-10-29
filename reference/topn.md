@@ -49,7 +49,17 @@ topn(vec, n=6L, decreasing=TRUE, hasna=TRUE, index=TRUE)
 `integer` vector of indices of the most extreme (according to
 `decreasing`) `n` values in vector `vec`. Please note that for large
 value of `n`, i.e. 1500 or 2000 (depending on the value of `hasna`),
-`topn` will default to base R function `order`.
+`topn` will default to base R function `order`. It also does so when the
+linear scan's rescan work becomes adversarial, e.g. for input already
+ordered opposite to `decreasing`, so the worst case is bounded. The
+fallback allocates a full-length `order` index (4 bytes per element:
+about 80 MB at 2e7 elements and 8 GB near `.Machine$integer.max`), so
+peak memory can be much higher than the linear path's memory
+proportional to `n`. Classed numeric vectors have `xtfrm` applied once
+and then use the same fast path, so their result matches `order`/`xtfrm`
+without sorting the whole vector for small `n`; for inputs longer than
+`.Machine$integer.max`, class attributes are ignored and the stored
+values are compared.
 
 For inputs longer than `.Machine$integer.max` the result is a `double`
 vector of indices, as an integer cannot address the whole input,

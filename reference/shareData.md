@@ -38,8 +38,8 @@ clearData(x, verbose=FALSE)
 a raw vector in the sharing session and that raw vector is copied into a
 shared memory object. `getData` copies the raw vector back into the
 reading session and unserializes it. The full object is thus serialized
-twice and copied once, which for large objects dominates the cost of the
-transfer.
+and unserialized once and copied twice (into and out of shared memory),
+which for large objects dominates the cost of the transfer.
 
 The shared object can be read once: `getData` unlinks the memory map as
 soon as it has read the data, so calling `getData` again with the same

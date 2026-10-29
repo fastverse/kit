@@ -4,6 +4,13 @@
 
 #### Bug Fixes
 
+- Evaluate the internal
+  [`order()`](https://rdrr.io/r/base/order.html)/[`sort()`](https://rdrr.io/r/base/sort.html)
+  calls in `topn`, `psort`, and `charToFact` in the base environment. A
+  caller-defined `order`/`sort` could previously shadow them and make
+  `topn` return out-of-bounds indices or `psort`/`charToFact` error or
+  sort incorrectly ([\#74](https://github.com/fastverse/kit/issues/74)).
+
 - Fix shared-memory lifetime and error-path safety in
   [`shareData()`](https://fastverse.org/kit/reference/shareData.md):
   POSIX mapping names are now owned copies, long-vector lengths,
@@ -24,6 +31,11 @@
   default is restored via `is.null(getOption())`, and the startup
   message only prints in interactive sessions
   ([\#56](https://github.com/fastverse/kit/issues/56)).
+
+- Keep `nswitch`’s per-output recycle mask on the heap instead of the C
+  stack, matching `vswitch`, so a very large number of value/output
+  pairs cannot overflow the stack
+  ([\#74](https://github.com/fastverse/kit/issues/74)).
 
 - Fix `shareData`/`getData`/`clearData` input validation: bad `map_name`
   (`""`/`NA`/length != 1/non-character) and `verbose`
@@ -75,6 +87,45 @@
 
 #### Notes
 
+- Reduce peak memory in `funique`, `fduplicated`, `uniqLen`, `psort`,
+  and `charToFact` by starting duplicate hash tables at 256 slots and
+  growing them on demand (4x, capped at the previous full-size table)
+  instead of allocating the full table up front. Rehashing re-reads the
+  source values, so results are unchanged; inputs with few unique values
+  use much less memory, while peak memory can be higher at growth
+  boundaries for high-cardinality inputs
+  ([\#74](https://github.com/fastverse/kit/issues/74)).
+
+- Speed up `vswitch` for string and list outputs by scanning `x` once
+  instead of once per value and fusing default/`na` writes into the
+  match pass; single-value lookups also avoid a separate initialization
+  pass. Atomic outputs keep the value-major vectorized pass, with the
+  first value fused into initialization. Last-match-wins behavior for
+  duplicate `values` is preserved, mixed output item types now fail with
+  a clear error, and list-output scratch arrays are heap allocated so
+  large outputs no longer exhaust the C stack
+  ([\#74](https://github.com/fastverse/kit/issues/74)).
+
+- Bound the `topn` linear candidate scan: input ordered opposite to
+  `decreasing` made every element replace the current worst and rescan
+  all `n` candidates, so `n = 1500` on 2e7 elements took ~14.5 s. The
+  scan now falls back to the existing radix
+  [`order()`](https://rdrr.io/r/base/order.html) path once its rescan
+  work exceeds a few passes over the input, reducing that case to ~0.11
+  s while leaving random and small-`n` inputs on the fast path. The
+  fallback allocates a full-length `order` index, so peak memory is
+  higher on adversarial inputs. Classed numeric vectors have `xtfrm`
+  applied once and then use the same fast selector, so a custom class
+  ordering matches [`order()`](https://rdrr.io/r/base/order.html)
+  without forcing a full radix sort for identity classes such as `Date`,
+  `POSIXct`, and factors
+  ([\#74](https://github.com/fastverse/kit/issues/74)).
+
+- Serialize `shareData` payloads directly to a raw vector instead of
+  through a raw connection, removing one full-payload copy on write and
+  connection overhead on read; the shared-memory format is unchanged
+  ([\#74](https://github.com/fastverse/kit/issues/74)).
+
 - Reduce `topn` memory use on long vectors (more than `INT_MAX`
   elements): the long path allocated a full-length radix
   [`order()`](https://rdrr.io/r/base/order.html) index (~8 x length
@@ -91,10 +142,10 @@
 
 - Document the `shareData`/`getData`/`clearData` contract in
   [`?shareData`](https://fastverse.org/kit/reference/shareData.md):
-  deep-copy cost (object serialized twice plus a memory-map copy, not a
-  pointer), single-read `getData`, lifetime and cleanup semantics,
-  platform differences, and a two-session `\dontrun` example;
-  cross-links the zero-copy request
+  deep-copy cost (object serialized once, then copied into and out of
+  shared memory, not a pointer), single-read `getData`, lifetime and
+  cleanup semantics, platform differences, and a two-session `\dontrun`
+  example; cross-links the zero-copy request
   ([\#43](https://github.com/fastverse/kit/issues/43))
   ([\#60](https://github.com/fastverse/kit/issues/60)).
 
