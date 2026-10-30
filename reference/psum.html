@@ -81,7 +81,10 @@ The word "parallel" here means that the functions work across several vectors at
 <p><code>pany</code> and <code>pall</code> are derived from base functions <code>all</code> and <code>any</code> and only allow logical inputs.</p>
 <p><code>pcount</code> counts the occurrence of <code>value</code>, and expects arguments of the same data type (except for <code>value = NA</code>). <code>pcountNA</code> is equivalent to <code>pcount</code> with <code>value = NA</code>, and they both allow <code>NA</code> counting in mixed-type data. <code>pcountNA</code> additionally supports list vectors and counts empty or <code>NULL</code> elements as <code>NA</code>.</p>
 <p>Functions <code>panyv/pallv</code> are wrappers around <code>pcount</code>, and <code>panyNA/pallNA</code> are wrappers around <code>pcountNA</code>. They return a logical vector instead of the integer count.</p>
-<p>None of these functions recycle vectors i.e. all input vectors need to have the same length. All functions support long vectors with up to <code>2^64-1</code> elements.</p>
+<p>None of these functions recycle vectors: all input vectors need to have the
+same length. All functions support long vectors up to R's limit
+(<code>2^52</code> elements on 64-bit builds; <code>2^31-1</code> on 32-bit builds),
+subject to available memory.</p>
     </div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>

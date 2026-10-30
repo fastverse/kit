@@ -74,9 +74,10 @@ Functions `panyv/pallv` are wrappers around `pcount`, and
 `panyNA/pallNA` are wrappers around `pcountNA`. They return a logical
 vector instead of the integer count.
 
-None of these functions recycle vectors i.e. all input vectors need to
-have the same length. All functions support long vectors with up to
-`2^64-1` elements.
+None of these functions recycle vectors: all input vectors need to have
+the same length. All functions support long vectors up to R's limit
+(`2^52` elements on 64-bit builds; `2^31-1` on 32-bit builds), subject
+to available memory.
 
 ## Value
 

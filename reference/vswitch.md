@@ -49,13 +49,28 @@ nswitch(x, ..., default=NULL,
 
 - nThread:
 
-  A integer for the number of threads to use with *openmp*. Default
-  value is `getOption("kit.nThread")`.
+  Integer. Number of threads to use. Default is
+  `getOption("kit.nThread")`.
 
 - checkEnc:
 
-  A logical value whether or not to check if `x` and `values` have
-  comparable and consistent encoding. Default is `TRUE`.
+  Logical. If `TRUE` (default), convert strings to UTF-8 before matching
+  when their declared encodings differ. See Details.
+
+## Details
+
+**Encoding.** With `checkEnc = TRUE` (default), `vswitch()` and
+`nswitch()` convert strings to UTF-8 before matching when the inputs use
+different declared encodings. The same text then matches whether it is
+stored as latin1 or UTF-8. With `checkEnc = FALSE`, matching uses the
+internal representation, including the encoding, so the same text in
+different encodings does not match.
+
+Use `checkEnc = TRUE` when strings come from files, databases, or
+different operating systems. On Windows, the native code page depends on
+the R version and locale (UTF-8 in recent R, CP1252 in older versions).
+Strings with `Encoding() == "unknown"` are interpreted in the native
+encoding, so declare the encoding when you read text from a file.
 
 ## Value
 

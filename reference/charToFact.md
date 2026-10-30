@@ -1,7 +1,7 @@
 # Convert Character Vector to Factor
 
-Similar to [`base::as.factor`](https://rdrr.io/r/base/factor.html) but
-much faster and only for converting character vector to factor.
+Similar to [`base::as.factor`](https://rdrr.io/r/base/factor.html), but
+much faster and only for converting a character vector to a factor.
 
 ## Usage
 
@@ -14,27 +14,37 @@ charToFact(x, decreasing=FALSE, addNA=TRUE,
 
 - x:
 
-  A vector of type character
+  A character vector.
 
 - decreasing:
 
-  A boolean. Whether to order levels in decreasing order or not. Default
-  is `FALSE`.
+  Logical. If `TRUE`, order levels in decreasing order. Default is
+  `FALSE`.
 
 - addNA:
 
-  A boolean. Whether to include `NA` in levels of the output or not.
-  Default is `TRUE`.
+  Logical. If `TRUE` (default), include `NA` in the levels of the
+  output.
 
 - nThread:
 
-  Number of thread to use.
+  Integer. Number of threads to use. Default is
+  `getOption("kit.nThread")`.
+
+## Details
+
+Levels are sorted in the session locale. For non-ASCII text, the level
+order can therefore differ between operating systems and locales. If you
+need a fixed order, set the levels yourself with
+`factor(x, levels = ...)`.
+
+With `addNA = TRUE` (default), `NA` is a level, unlike
+[`as.factor()`](https://rdrr.io/r/base/factor.html), which drops `NA`
+levels.
 
 ## Value
 
-The character vector input as a factor. Please note that, unlike
-`as.factor`, `NA` levels are preserved by default, however this can be
-changed by setting argument `addNA` to `FALSE`.
+A factor with the same length as `x`.
 
 ## Examples
 

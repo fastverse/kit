@@ -1,8 +1,8 @@
 # Parallel Sort
 
-Similar to [`base::sort`](https://rdrr.io/r/base/sort.html) but just for
-character vector and partially using parallelism. It is currently
-experimental and might change in the future. Use with caution.
+Similar to [`base::sort`](https://rdrr.io/r/base/sort.html), but only
+for character vectors and partly using parallelism. It is experimental
+and might change in the future. Use with caution.
 
 ## Usage
 
@@ -15,37 +15,41 @@ psort(x, decreasing=FALSE, na.last=NA,
 
 - x:
 
-  A vector of type character. If other, it will default to
-  [`base::sort`](https://rdrr.io/r/base/sort.html)
+  A character vector. For other input, `psort()` warns and calls
+  [`base::sort()`](https://rdrr.io/r/base/sort.html).
 
 - na.last:
 
-  For controlling the treatment of `NA`s. If `TRUE`, missing values in
-  the data are put last; if `FALSE`, they are put first; if `NA`, they
-  are removed.
+  Controls the treatment of `NA`s. If `TRUE`, missing values are put
+  last; if `FALSE`, they are put first; if `NA`, they are removed.
 
 - decreasing:
 
-  A boolean indicating where to sort the data in decreasing way. Default
-  is `FALSE`.
+  Logical. If `TRUE`, sort in decreasing order. Default is `FALSE`.
 
 - nThread:
 
-  Number of thread to use. Default value is `1L`.
+  Integer. Number of threads to use. Default is
+  `getOption("kit.nThread")`.
 
 - c.locale:
 
-  A boolean, whether to use C Locale or R session locale. Default TRUE.
+  Logical. If `TRUE` (default), sort byte by byte in the C locale. The
+  result is the same on every operating system and matches
+  `sort(x, method = "radix")`. If `FALSE`, use the session locale and
+  `sort(x, method = "quick")`; the order of accented letters and other
+  non-ASCII text can differ between operating systems and locales.
+
+## Details
+
+For non-character `x`, `psort()` warns and calls
+[`base::sort()`](https://rdrr.io/r/base/sort.html) with
+`method = "radix"` when `c.locale = TRUE`, and `method = "quick"`
+otherwise.
 
 ## Value
 
-Returns the input `x` in sorted order similar to
-[`base::sort`](https://rdrr.io/r/base/sort.html) but usually faster. If
-`c.locale=FALSE`, `psort` will return the same output as
-[`base::sort`](https://rdrr.io/r/base/sort.html) with `method="quick"`,
-i.e. using R session locale. If `c.locale=TRUE`, `psort` will return the
-same output as [`base::sort`](https://rdrr.io/r/base/sort.html) with
-`method="radix"`, i.e. using C locale. See example below.
+A character vector with the values of `x` in sorted order.
 
 ## Author
 
