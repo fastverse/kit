@@ -1,8 +1,7 @@
 Package: kit
 Type: Package
 Title: Data Manipulation Functions Implemented in C
-Version: 0.0.22
-Date: 2026-08-25
+Version: 0.0.23
 Authors@R: c(person("Morgan", "Jacob", role = c("aut", "cph"), email = "morgan.emailbox@gmail.com"), 
              person("Sebastian", "Krantz", role = c("ctb", "cre"), email = "sebastian.krantz@graduateinstitute.ch"),
              person("David", "Budzynski", role = c("ctb"), email = "david.budzynsky@gmail.com"))
@@ -17,5 +16,6 @@ VignetteBuilder: knitr
 Encoding: UTF-8
 BugReports: https://github.com/fastverse/kit/issues
 NeedsCompilation: yes
+SystemRequirements: OpenMP (optional)
 ByteCompile: yes
 Config/Needs/website: pkgdown

@@ -1,5 +1,6 @@
 ^\.github$
 ^\.appveyor\.yml$
+^codecov\.yml$
 ^README\.md$
 LICENSE
 .DS_Store
