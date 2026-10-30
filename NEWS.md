@@ -1,5 +1,9 @@
 # kit (development version)
 
+### Breaking Changes
+
+- The package now requires R 4.2.0 or later. The previous floor was R 3.5.0. R 3.5 to 4.1 are no longer supported, and the pre-3.5 shims are removed from `src/kit.h` (#95).
+
 ### Bug Fixes
 
 - Fix `nswitch()` segfaulting when called without value/output pairs (e.g. `nswitch(1:3)` or `nswitch(1:3, default = 0L)`): the argument count is now validated before any pair is read, and the call errors with a clear message (#87).
@@ -23,6 +27,10 @@
 - Guard the mixed-type data.frame paths in `funique`/`fduplicated` (`dupDataFrameR`), `uniqLen` (`dupLenDataFrameR`), and `countOccur` (`countOccurDataFrameR`): with more than `INT_MAX` rows the row count was truncated to `int` inside `allocMatrix()`, so 2^31-2^32 rows errored with R's confusing "negative extents to matrix" message (and above 2^32 rows the mixed `funique`/`uniqLen` logical-column case could write out of bounds, which the per-column 2^30 guard only prevents for other types). These paths now stop up front with the standard "Long vector not supported yet" error, before any allocation, when the rows exceed `INT_MAX` or the matrix would exceed `INT_MAX` cells — the same bound the all-same-type branch has applied to `dfToMatrix()` since the length audit (#61), so the same data.frame now fails the same way regardless of whether its columns share one type (#82).
 
 ### Notes
+
+- Add a test that `shareData()` accepts a `map_name` without a leading slash on all platforms (#95).
+
+- Add weekly and manual CI jobs that run `R CMD check --use-gct` and `R CMD check --use-valgrind`. These checks do not run on pull requests (#95).
 
 - Reduce peak memory in `funique`, `fduplicated`, `uniqLen`, `psort`, and `charToFact` by starting duplicate hash tables at 256 slots and growing them on demand (4x, capped at the previous full-size table) instead of allocating the full table up front. Rehashing re-reads the source values, so results are unchanged; inputs with few unique values use much less memory, while peak memory can be higher at growth boundaries for high-cardinality inputs (#74).
 

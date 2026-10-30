@@ -1,0 +1,35 @@
+# Slow C-safety checks. They run weekly and on manual dispatch, not on pull requests.
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+name: c-safety
+
+permissions: read-all
+
+jobs:
+  c-safety:
+    name: gctorture and valgrind
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          extra-packages: any::tinytest
+
+      - name: gctorture
+        run: R CMD check --use-gct --no-manual --no-build-vignettes .
+
+      - name: valgrind
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y valgrind
+          rm -rf kit.Rcheck
+          R CMD check --use-valgrind --no-manual --no-build-vignettes .

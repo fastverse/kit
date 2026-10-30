@@ -85,3 +85,12 @@ for (i in seq_along(share_payloads)) {
                    info = paste0("share-0074.", sprintf("%03d", i)))
   expect_true(clearData(handle), info = paste0("share-0074.clear.", i))
 }
+
+# issue #95: map_name without a leading slash must work on every platform
+noslash <- paste0("kit55-noslash-", Sys.getpid())
+h <- tryCatch(shareData(mtcars, noslash), error = function(err) NULL)
+if (!is.null(h)) {
+  expect_identical(getData(noslash), mtcars,
+                   info = "share-0055.015 no leading slash")
+  expect_true(clearData(h), info = "share-0055.016 no leading slash cleanup")
+}
