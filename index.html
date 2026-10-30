@@ -65,6 +65,41 @@
 <span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"kit"</span>, repos <span class="op">=</span> <span class="st">"https://fastverse.r-universe.dev"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="openmp-and-threads">OpenMP and threads<a class="anchor" aria-label="anchor" href="#openmp-and-threads"></a>
+</h2>
+<p><code>kit</code> uses OpenMP in <code><a href="reference/iif.html">iif()</a></code>, <code><a href="reference/vswitch.html">nswitch()</a></code>, <code><a href="reference/vswitch.html">vswitch()</a></code>, <code><a href="reference/psort.html">psort()</a></code>, and <code><a href="reference/charToFact.html">charToFact()</a></code>. The other functions use one thread. OpenMP is optional. Without OpenMP, <code>kit</code> still works, but these five functions use one thread.</p>
+<ul>
+<li><p><strong>Linux:</strong> Install the OpenMP runtime for your compiler. With GCC, this is usually <code>libgomp</code> (<code>libgomp1</code> on Debian and Ubuntu). With Clang, install <code>libomp</code> (<code>libomp-dev</code> on Debian and Ubuntu).</p></li>
+<li>
+<p><strong>macOS:</strong> Apple Clang does not include OpenMP. Install it with Homebrew: <code>brew install libomp</code>. On Apple Silicon, Homebrew installs to a path that clang does not search by default. Add that path to your R Makevars before you install <code>kit</code> from source (<code>configure</code> decides with <code>CFLAGS</code>, so the include path must be there):</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="co"># ~/.R/Makevars</span></span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="ex">CFLAGS</span> += <span class="at">-I</span><span class="va">$(</span><span class="ex">shell</span> brew <span class="at">--prefix</span> libomp<span class="va">)</span>/include <span class="at">-L</span><span class="va">$(</span><span class="ex">shell</span> brew <span class="at">--prefix</span> libomp<span class="va">)</span>/lib</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="ex">LDFLAGS</span> += <span class="at">-L</span><span class="va">$(</span><span class="ex">shell</span> brew <span class="at">--prefix</span> libomp<span class="va">)</span>/lib</span></code></pre></div>
+</li>
+<li><p><strong>Windows:</strong> OpenMP is included in Rtools. Install the Rtools version that matches your R version. Then install <code>kit</code> from source.</p></li>
+</ul>
+<p>Set the number of threads once for each session:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/options.html" class="external-link">options</a></span><span class="op">(</span>kit.nThread <span class="op">=</span> <span class="fl">4L</span><span class="op">)</span></span></code></pre></div>
+<p>The default is <code>1</code>. If you set a value that is larger than the number of available processors, <code>kit</code> uses the number of available processors. <code>kit</code> reads the option each time you call a function, so you can change it between calls.</p>
+<p>To check whether OpenMP is enabled, run:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/base/CallExternal.html" class="external-link">.Call</a></span><span class="op">(</span><span class="fu">kit</span><span class="fu">:::</span><span class="va">CompEnabledR</span><span class="op">)</span></span></code></pre></div>
+<p>If this call returns <code>FALSE</code>, the five functions above use one thread, even when <code>kit.nThread</code> is larger than <code>1</code>.</p>
+</div>
+<div class="section level2">
+<h2 id="platforms">Platforms<a class="anchor" aria-label="anchor" href="#platforms"></a>
+</h2>
+<p><code>kit</code> is tested on Linux, macOS, and Windows. OpenMP is optional. See <a href="#openmp-and-threads">OpenMP and threads</a> for the installation requirements.</p>
+<p><code><a href="reference/shareData.html">shareData()</a></code> behaves differently on POSIX systems and Windows:</p>
+<ul>
+<li>
+<strong>Linux, macOS, and other POSIX systems:</strong> <code><a href="reference/shareData.html">getData()</a></code> reads the object one time. A second call with the same name fails. If the sharing session stops before <code><a href="reference/shareData.html">clearData()</a></code>, the object can stay in shared memory: on Linux in <code>/dev/shm</code> until you remove it or restart the machine, on macOS until the machine restarts.</li>
+<li>
+<strong>Windows:</strong> <code><a href="reference/shareData.html">getData()</a></code> can read the object more than one time while the sharing session is alive. If the sharing session stops, Windows removes the mapping.</li>
+</ul>
+</div>
+<div class="section level2">
 <h2 id="features">Features<a class="anchor" aria-label="anchor" href="#features"></a>
 </h2>
 <div class="section level3">
@@ -83,9 +118,10 @@
 <li>
 <strong><code>pfirst</code>, <code>plast</code></strong>: First/last non-missing values</li>
 </ul>
-<p>The word “parallel” in their names means they work across several vectors at once, not that they use multiple threads. These functions are single-threaded C code. Only <code><a href="reference/iif.html">iif()</a></code>, <code><a href="reference/vswitch.html">nswitch()</a></code>, <code><a href="reference/vswitch.html">vswitch()</a></code>, <code><a href="reference/psort.html">psort()</a></code>, and <code><a href="reference/charToFact.html">charToFact()</a></code> can use OpenMP, and only when you raise <code>options(kit.nThread)</code> above its default of 1.</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">3</span>, <span class="cn">NA</span>, <span class="fl">5</span><span class="op">)</span></span>
+<p>The word “parallel” in their names means they work across several vectors at once, not that they use multiple threads. These functions are single-threaded C code.</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://fastverse.org/kit/">kit</a></span><span class="op">)</span></span>
+<span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">3</span>, <span class="cn">NA</span>, <span class="fl">5</span><span class="op">)</span></span>
 <span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="cn">NA</span>, <span class="fl">4</span>, <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="fu"><a href="reference/psum.html">psum</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>  <span class="co"># [1] 3 3 4 6</span></span>
 <span><span class="fu"><a href="reference/psum.html">pmean</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span> <span class="co"># [1] 1.5 3.0 4.0 3.0</span></span>
@@ -105,7 +141,7 @@
 <li>
 <strong><code>vswitch</code>, <code>nswitch</code></strong>: Vectorized switch statements</li>
 </ul>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/iif.html">iif</a></span><span class="op">(</span><span class="va">x</span> <span class="op">&gt;</span> <span class="fl">2</span>, <span class="va">x</span>, <span class="va">x</span> <span class="op">-</span> <span class="fl">1</span><span class="op">)</span>  <span class="co"># Preserves attributes unlike base::ifelse</span></span>
 <span><span class="fu"><a href="reference/nif.html">nif</a></span><span class="op">(</span><span class="va">x</span> <span class="op">==</span> <span class="fl">1</span>, <span class="st">"one"</span>, <span class="va">x</span> <span class="op">==</span> <span class="fl">2</span>, <span class="st">"two"</span>, default <span class="op">=</span> <span class="st">"other"</span><span class="op">)</span></span></code></pre></div>
 </div>
@@ -118,7 +154,7 @@
 <li>
 <strong><code>topn</code></strong>: Efficient partial sort (top N values) without full sorting</li>
 </ul>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/topn.html">topn</a></span><span class="op">(</span><span class="va">x</span>, n <span class="op">=</span> <span class="fl">6L</span>, decreasing <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>  <span class="co"># Much faster than order()[1:6]</span></span></code></pre></div>
 </div>
 <div class="section level3">
@@ -143,7 +179,7 @@
 <li>
 <strong><code>count</code>, <code>countNA</code>, <code>countOccur</code></strong>: Count element occurrences</li>
 </ul>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="reference/funique.html">funique</a></span><span class="op">(</span><span class="va">iris</span><span class="op">$</span><span class="va">Species</span><span class="op">)</span>  <span class="co"># Faster than base::unique</span></span>
 <span><span class="fu"><a href="reference/funique.html">uniqLen</a></span><span class="op">(</span><span class="va">iris</span><span class="op">$</span><span class="va">Species</span><span class="op">)</span>  <span class="co"># Faster than length(unique())</span></span></code></pre></div>
 </div>

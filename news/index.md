@@ -94,6 +94,13 @@
 
 #### Notes
 
+- Document [`?kit`](https://fastverse.org/kit/reference/kit-package.md)
+  with a package page that explains OpenMP threads, platform support,
+  encoding behavior, and the main functions. Add “OpenMP and threads”
+  and “Platforms” sections to the README, and add
+  [`library(kit)`](https://fastverse.org/kit/) to the first README
+  example ([\#90](https://github.com/fastverse/kit/issues/90)).
+
 - Reduce peak memory in `funique`, `fduplicated`, `uniqLen`, `psort`,
   and `charToFact` by starting duplicate hash tables at 256 slots and
   growing them on demand (4x, capped at the previous full-size table)

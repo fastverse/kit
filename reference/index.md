@@ -1,5 +1,13 @@
 # Package index
 
+## Overview
+
+Package overview, threading, platform support and encodings.
+
+- [`kit-package`](https://fastverse.org/kit/reference/kit-package.md)
+  [`kit`](https://fastverse.org/kit/reference/kit-package.md) : kit:
+  Fast Data Manipulation Functions in C
+
 ## Row-wise Statistical Functions
 
 Vector-valued (statistical) functions that combine several vectors
