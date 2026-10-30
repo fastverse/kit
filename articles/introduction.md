@@ -14,8 +14,9 @@ row-wise operations, vectorized conditionals, and duplicate detection.
 
 Key features include:
 
-- **Parallel statistical functions**: Row-wise operations (`psum`,
-  `pmean`, `pfirst`) using OpenMP.
+- **Row-wise statistical functions**: Operations across several vectors
+  at once (`psum`, `pmean`, `pfirst`). These functions are
+  single-threaded C code.
 - **Vectorized conditionals**: Fast `if-else` logic (`iif`, `nif`,
   `vswitch`) that preserves attributes.
 - **Efficient set operations**: Faster `unique`, `duplicated`, and
@@ -25,11 +26,17 @@ Key features include:
 - **Factor utilities**: Fast character-to-factor conversion
   (`charToFact`) and level manipulation (`setlevels`).
 
-Most functions are implemented in C and support multi-threading where
-applicable, making them significantly faster than their base R
-equivalents on large datasets.
+Most functions are implemented in C, making them significantly faster
+than their base R equivalents on large datasets. Five functions can use
+OpenMP when you raise `options(kit.nThread)` above its default of 1:
+[`iif()`](https://fastverse.org/kit/reference/iif.md),
+[`nswitch()`](https://fastverse.org/kit/reference/vswitch.md),
+[`vswitch()`](https://fastverse.org/kit/reference/vswitch.md),
+[`psort()`](https://fastverse.org/kit/reference/psort.md), and
+[`charToFact()`](https://fastverse.org/kit/reference/charToFact.md). The
+other functions, including the `p*` functions, run on one thread.
 
-## Parallel Statistical Functions
+## Row-wise Statistical Functions
 
 Computing row-wise statistics across multiple vectors or data frame
 columns is a common task. While base R has
@@ -42,7 +49,7 @@ equivalents for sum, mean, or product. **kit** fills this gap.
 [`psum()`](https://fastverse.org/kit/reference/psum.md),
 [`pmean()`](https://fastverse.org/kit/reference/psum.md), and
 [`pprod()`](https://fastverse.org/kit/reference/psum.md) compute
-parallel sum, mean, and product respectively. They accept multiple
+row-wise sum, mean, and product respectively. They accept multiple
 vectors or a single list/data frame.
 
 ``` r
@@ -51,11 +58,11 @@ x <- c(1, 3, NA, 5)
 y <- c(2, NA, 4, 1)
 z <- c(3, 4, 4, 1)
 
-# Parallel sum
+# Row-wise sum
 psum(x, y, z, na.rm = TRUE)
 #> [1] 6 7 8 7
 
-# Parallel mean
+# Row-wise mean
 pmean(x, y, z, na.rm = TRUE)
 #> [1] 2.000000 3.500000 4.000000 2.333333
 ```
@@ -74,7 +81,7 @@ psum(df)
 [`fpmin()`](https://fastverse.org/kit/reference/psum.md),
 [`fpmax()`](https://fastverse.org/kit/reference/psum.md), and
 [`prange()`](https://fastverse.org/kit/reference/psum.md) compute
-parallel minimum, maximum, and range (max - min) respectively. They
+row-wise minimum, maximum, and range (max - min) respectively. They
 complement base R’s [`pmin()`](https://rdrr.io/r/base/Extremes.html) and
 [`pmax()`](https://rdrr.io/r/base/Extremes.html), providing greater
 performance and the ability to work efficiently with data frames.
@@ -85,15 +92,15 @@ x <- c(1, 3, NA, 5)
 y <- c(2, NA, 4, 1)
 z <- c(3, 4, 4, 1)
 
-# Parallel minimum
+# Row-wise minimum
 fpmin(x, y, z, na.rm = TRUE)
 #> [1] 1 3 4 1
 
-# Parallel maximum
+# Row-wise maximum
 fpmax(x, y, z, na.rm = TRUE)
 #> [1] 3 4 4 5
 
-# Parallel range (max - min)
+# Row-wise range (max - min)
 prange(x, y, z, na.rm = TRUE)
 #> [1] 2 1 0 4
 ```

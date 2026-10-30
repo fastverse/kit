@@ -75,9 +75,9 @@ duplicate detection.</p>
 <p>Key features include:</p>
 <ul>
 <li>
-<strong>Parallel statistical functions</strong>: Row-wise operations
-(<code>psum</code>, <code>pmean</code>, <code>pfirst</code>) using
-OpenMP.</li>
+<strong>Row-wise statistical functions</strong>: Operations across
+several vectors at once (<code>psum</code>, <code>pmean</code>,
+<code>pfirst</code>). These functions are single-threaded C code.</li>
 <li>
 <strong>Vectorized conditionals</strong>: Fast <code>if-else</code>
 logic (<code>iif</code>, <code>nif</code>, <code>vswitch</code>) that
@@ -94,12 +94,16 @@ sorting the entire vector (<code>topn</code>).</li>
 conversion (<code>charToFact</code>) and level manipulation
 (<code>setlevels</code>).</li>
 </ul>
-<p>Most functions are implemented in C and support multi-threading where
-applicable, making them significantly faster than their base R
-equivalents on large datasets.</p>
+<p>Most functions are implemented in C, making them significantly faster
+than their base R equivalents on large datasets. Five functions can use
+OpenMP when you raise <code>options(kit.nThread)</code> above its
+default of 1: <code><a href="../reference/iif.html">iif()</a></code>, <code><a href="../reference/vswitch.html">nswitch()</a></code>,
+<code><a href="../reference/vswitch.html">vswitch()</a></code>, <code><a href="../reference/psort.html">psort()</a></code>, and
+<code><a href="../reference/charToFact.html">charToFact()</a></code>. The other functions, including the
+<code>p*</code> functions, run on one thread.</p>
 </div>
 <div class="section level2">
-<h2 id="parallel-statistical-functions">Parallel Statistical Functions<a class="anchor" aria-label="anchor" href="#parallel-statistical-functions"></a>
+<h2 id="row-wise-statistical-functions">Row-wise Statistical Functions<a class="anchor" aria-label="anchor" href="#row-wise-statistical-functions"></a>
 </h2>
 <p>Computing row-wise statistics across multiple vectors or data frame
 columns is a common task. While base R has <code><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmin()</a></code> and
@@ -109,18 +113,18 @@ product. <strong>kit</strong> fills this gap.</p>
 <h3 id="row-wise-arithmetic">Row-wise Arithmetic<a class="anchor" aria-label="anchor" href="#row-wise-arithmetic"></a>
 </h3>
 <p><code><a href="../reference/psum.html">psum()</a></code>, <code><a href="../reference/psum.html">pmean()</a></code>, and <code><a href="../reference/psum.html">pprod()</a></code>
-compute parallel sum, mean, and product respectively. They accept
+compute row-wise sum, mean, and product respectively. They accept
 multiple vectors or a single list/data frame.</p>
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">x</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">1</span>, <span class="fl">3</span>, <span class="cn">NA</span>, <span class="fl">5</span><span class="op">)</span></span>
 <span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="cn">NA</span>, <span class="fl">4</span>, <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">z</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">4</span>, <span class="fl">4</span>, <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Parallel sum</span></span>
+<span><span class="co"># Row-wise sum</span></span>
 <span><span class="fu"><a href="../reference/psum.html">psum</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">z</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 6 7 8 7</span></span>
 <span></span>
-<span><span class="co"># Parallel mean</span></span>
+<span><span class="co"># Row-wise mean</span></span>
 <span><span class="fu"><a href="../reference/psum.html">pmean</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">z</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 2.000000 3.500000 4.000000 2.333333</span></span></code></pre></div>
 <p>They are particularly useful for data frames:</p>
@@ -133,7 +137,7 @@ multiple vectors or a single list/data frame.</p>
 <h3 id="row-wise-min-max-and-range">Row-wise Min, Max, and Range<a class="anchor" aria-label="anchor" href="#row-wise-min-max-and-range"></a>
 </h3>
 <p><code><a href="../reference/psum.html">fpmin()</a></code>, <code><a href="../reference/psum.html">fpmax()</a></code>, and <code><a href="../reference/psum.html">prange()</a></code>
-compute parallel minimum, maximum, and range (max - min) respectively.
+compute row-wise minimum, maximum, and range (max - min) respectively.
 They complement base R’s <code><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmin()</a></code> and <code><a href="https://rdrr.io/r/base/Extremes.html" class="external-link">pmax()</a></code>,
 providing greater performance and the ability to work efficiently with
 data frames.</p>
@@ -142,15 +146,15 @@ data frames.</p>
 <span><span class="va">y</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">2</span>, <span class="cn">NA</span>, <span class="fl">4</span>, <span class="fl">1</span><span class="op">)</span></span>
 <span><span class="va">z</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">3</span>, <span class="fl">4</span>, <span class="fl">4</span>, <span class="fl">1</span><span class="op">)</span></span>
 <span></span>
-<span><span class="co"># Parallel minimum</span></span>
+<span><span class="co"># Row-wise minimum</span></span>
 <span><span class="fu"><a href="../reference/psum.html">fpmin</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">z</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 1 3 4 1</span></span>
 <span></span>
-<span><span class="co"># Parallel maximum</span></span>
+<span><span class="co"># Row-wise maximum</span></span>
 <span><span class="fu"><a href="../reference/psum.html">fpmax</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">z</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 3 4 4 5</span></span>
 <span></span>
-<span><span class="co"># Parallel range (max - min)</span></span>
+<span><span class="co"># Row-wise range (max - min)</span></span>
 <span><span class="fu"><a href="../reference/psum.html">prange</a></span><span class="op">(</span><span class="va">x</span>, <span class="va">y</span>, <span class="va">z</span>, na.rm <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span>
 <span><span class="co">#&gt; [1] 2 1 0 4</span></span></code></pre></div>
 <p>Like <code><a href="../reference/psum.html">psum()</a></code> and <code><a href="../reference/psum.html">pmean()</a></code>, these functions

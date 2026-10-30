@@ -6,6 +6,10 @@ Similar to [`pmin`](https://rdrr.io/r/base/Extremes.html) and
 [`pmax`](https://rdrr.io/r/base/Extremes.html), except that these
 functions do not recycle vectors.
 
+The word "parallel" here means that the functions work across several
+vectors at once. It does not mean multi-threading: these functions are
+single-threaded C code.
+
 ## Usage
 
 ``` r

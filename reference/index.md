@@ -1,9 +1,10 @@
 # Package index
 
-## Parallel Statistical Functions
+## Row-wise Statistical Functions
 
-Vector-valued (statistical) functions operating in parallel over vectors
-passed as arguments, or a single list of vectors/data frame.
+Vector-valued (statistical) functions that combine several vectors
+passed as arguments, or a single list of vectors/data frame, element by
+element.
 
 - [`psum()`](https://fastverse.org/kit/reference/psum.md)
   [`pprod()`](https://fastverse.org/kit/reference/psum.md)
