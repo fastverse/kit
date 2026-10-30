@@ -4,6 +4,13 @@
 
 #### Bug Fixes
 
+- Fix [`nswitch()`](https://fastverse.org/kit/reference/vswitch.md)
+  segfaulting when called without value/output pairs
+  (e.g. `nswitch(1:3)` or `nswitch(1:3, default = 0L)`): the argument
+  count is now validated before any pair is read, and the call errors
+  with a clear message
+  ([\#87](https://github.com/fastverse/kit/issues/87)).
+
 - Evaluate the internal
   [`order()`](https://rdrr.io/r/base/order.html)/[`sort()`](https://rdrr.io/r/base/sort.html)
   calls in `topn`, `psort`, and `charToFact` in the base environment. A
