@@ -56,7 +56,13 @@
 #define RCHAR(x, y) CHAR(STRING_ELT(x, y))
 #define SEXP_F ScalarLogical(FALSE)
 #define SEXP_T ScalarLogical(TRUE)
-#define HASH(key, K)  (3141592653U * (unsigned int)(key) >> (32 - (K)))
+static inline size_t kit_hash_key(uint32_t key, int K) {
+  // avalanche so sequential integer keys do not collide in power-of-two tables
+  key ^= key >> 16;
+  key *= 0x9E3779B1U;
+  return (size_t)(key >> (32 - K));
+}
+#define HASH(key, K)  kit_hash_key((uint32_t)(key), (K))
 #define N_ISNAN(x, y) (!ISNAN(x) && !ISNAN(y))
 #define B_IsNA(x, y)  (R_IsNA(x) && R_IsNA(y))
 #define B_IsNaN(x, y) (R_IsNaN(x) && R_IsNaN(y))
