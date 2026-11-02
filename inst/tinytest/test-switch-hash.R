@@ -8,7 +8,7 @@ sys.source("helper-kit.R", envir = environment())
 
 # Reference for types where NA matches NA (integer, logical, string, factor).
 ref_na <- function(x, values, outputs, default = NA) {
-  ans <- rep(default, length(x))
+  ans <- rep_len(default, length(x))
   for (i in seq_along(values)) {
     hit <- if (is.na(values[i])) is.na(x) else !is.na(x) & x == values[i]
     ans[hit] <- rep_len(outputs[[i]], length(x))[hit]
@@ -18,7 +18,7 @@ ref_na <- function(x, values, outputs, default = NA) {
 
 # Reference for doubles/complex, where NA and NaN never match.
 ref_num <- function(x, values, outputs, default = NA) {
-  ans <- rep(default, length(x))
+  ans <- rep_len(default, length(x))
   for (i in seq_along(values)) {
     hit <- !is.na(values[i]) & !is.nan(values[i]) &
       !is.na(x) & !is.nan(x) & x == values[i]
@@ -192,3 +192,27 @@ expect_identical(
           1+0i, 1L, 2+0i, 2L, 3+0i, 3L, 4+0i, 4L, 5+0i, 5L,
           6+0i, 6L, 7+0i, 7L, 8+0i, 8L, 9+0i, 9L, default = 0L),
   c(1L, 9L, 0L, 0L), info = "hash-nswitch-cplx")
+
+# Mixed encodings and length(x) defaults on the hash path.
+vals_e9 <- c(paste0("v", 1:7), enc_lat, enc_utf)
+x_e9 <- c(enc_lat, enc_utf, NA_character_, "v1")
+pairs_e9 <- unlist(lapply(seq_along(vals_e9), function(i) list(vals_e9[i], i)),
+                   recursive = FALSE)
+expect_identical(
+  do.call(nswitch, c(list(x_e9), pairs_e9, list(default = 0L))),
+  c(9L, 9L, 0L, 1L), info = "hash-nswitch-enc")
+expect_identical(vswitch(enc2utf8(x_s), enc2utf8(vals_s), outs_s,
+                         checkEnc = FALSE),
+                 exp_s, info = "hash-vswitch-nocheckenc")
+dflt <- seq_along(x_i) * 10L
+expect_identical(vswitch(x_i, vals_i, outs_i, dflt),
+                 ref_na(x_i, vals_i, as.list(outs_i), default = dflt),
+                 info = "hash-vswitch-vector-default")
+expect_identical(
+  do.call(nswitch, c(list(x_i),
+                     unlist(lapply(seq_along(vals_i),
+                                   function(i) list(vals_i[i], outs_i[i])),
+                            recursive = FALSE),
+                     list(default = dflt))),
+  ref_na(x_i, vals_i, as.list(outs_i), default = dflt),
+  info = "hash-nswitch-vector-default")

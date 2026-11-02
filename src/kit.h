@@ -49,6 +49,8 @@
 #define IS_BOOL(x) (XLENGTH(x)==1 && TYPEOF(x)==LGLSXP && LOGICAL(x)[0]!=NA_LOGICAL)
 #define IS_VALID_TYPE(x) ((x) == LGLSXP || (x)==INTSXP || (x)==REALSXP || (x)==CPLXSXP || (x)==STRSXP || (x)==VECSXP)
 #define IS_SWITCH_HASH_TYPE(x) ((x) == LGLSXP || (x)==INTSXP || (x)==REALSXP || (x)==CPLXSXP || (x)==STRSXP)
+/* Keep the per-pair map memory bounded; absurd pair counts stay value-major. */
+#define KIT_SWITCH_HASH_MAX_PAIRS 1048576
 #define PTR_ETL(x, y) (((const SEXP *)DATAPTR_RO(x))[y])
 #define SEXPPTR_RO(x) ((const SEXP *)DATAPTR_RO(x))
 #define ISNA_COMPLEX(x) (ISNA(x.r) || ISNA(x.i))
@@ -210,14 +212,18 @@ KIT_DEFINE_ROW_GROW(str, SEXP, kit_hash_rows_str)
 static inline bool kit_likely_high_card_##name(const type *px, \
                                                const R_xlen_t len_i, \
                                                const R_xlen_t len_x) { \
-  const R_xlen_t sample = len_i < 65536 ? len_i : 65536; \
-  if (sample < 64) return false; \
+  if (len_i < 262144) return false; /* growth is cheap below this size */ \
+  R_xlen_t sample = len_x > 16 ? 65536 / len_x : 65536; \
+  if (sample < 4096) sample = 4096; \
+  if (sample > len_i) sample = len_i; \
   size_t cap = 256; \
   while (cap < (size_t) sample * 2) cap <<= 1; \
   uint32_t *keys = (uint32_t*) R_Calloc(cap, uint32_t); \
   size_t distinct = 0; \
+  uint64_t state = 0x9E3779B97F4A7C15ULL ^ (uint64_t) len_i; \
   for (R_xlen_t s = 0; s < sample; ++s) { \
-    const R_xlen_t i = (R_xlen_t)((uint64_t) s * (uint64_t) len_i / (uint64_t) sample); \
+    state = state * 6364136223846793005ULL + 1442695040888963407ULL; \
+    const R_xlen_t i = (R_xlen_t)(state % (uint64_t) len_i); \
     uint32_t key = (uint32_t) hashfn(px, i, len_i, len_x, 32); \
     if (!key) key = 1; \
     size_t id = (size_t) key & (cap - 1); \
@@ -225,8 +231,9 @@ static inline bool kit_likely_high_card_##name(const type *px, \
     if (!keys[id]) { keys[id] = key; distinct++; } \
   } \
   R_Free(keys); \
+  if (distinct < 64) return false; \
   const size_t dup = (size_t) sample - distinct; \
-  if (!dup) return true; /* a full sample with no repeat means U >> n/2 */ \
+  if (!dup) return true; /* no repeat in a random sample means U >> n/2 */ \
   const double uhat = (double) sample * (double) (sample - 1) / \
                       (2.0 * (double) dup); \
   return uhat > (double) len_i * 0.5; \
@@ -234,7 +241,6 @@ static inline bool kit_likely_high_card_##name(const type *px, \
 
 KIT_DEFINE_ROW_SAMPLE(lgl, int, kit_hash_rows_lgl)
 KIT_DEFINE_ROW_SAMPLE(int, int, kit_hash_rows_int)
-KIT_DEFINE_ROW_SAMPLE(int_raw, int, kit_hash_rows_int_raw)
 KIT_DEFINE_ROW_SAMPLE(real, double, kit_hash_rows_real)
 KIT_DEFINE_ROW_SAMPLE(cplx, Rcomplex, kit_hash_rows_cplx)
 KIT_DEFINE_ROW_SAMPLE(str, SEXP, kit_hash_rows_str)

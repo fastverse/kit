@@ -17,6 +17,7 @@
  */
 
 #include "kit.h"
+#include <string.h>
 
 /*
  * Value -> last pair index map for vswitch()/nswitch() when there are many
@@ -128,11 +129,10 @@ KIT_SW_MATCH_DEF(dbl, double)
 KIT_SW_MATCH_DEF(cplx, Rcomplex)
 KIT_SW_MATCH_DEF(str, SEXP)
 
-static inline void kit_sw_write_lgl(SEXP ans, const int *match,
+static inline void kit_sw_write_lgl(int *restrict pans, const int *match,
                                     const R_xlen_t off, const R_xlen_t len,
                                     const int *pna, const ssize_t namask,
                                     int *const *ppo, const ssize_t *amask) {
-  int *restrict pans = LOGICAL(ans);
   for (ssize_t j = 0; j < len; ++j) {
     const int k = match[j];
     pans[off + j] = k < 0 ? (pna ? pna[(off + j) & namask] : NA_LOGICAL)
@@ -140,11 +140,10 @@ static inline void kit_sw_write_lgl(SEXP ans, const int *match,
   }
 }
 
-static inline void kit_sw_write_int(SEXP ans, const int *match,
+static inline void kit_sw_write_int(int *restrict pans, const int *match,
                                     const R_xlen_t off, const R_xlen_t len,
                                     const int *pna, const ssize_t namask,
                                     int *const *ppo, const ssize_t *amask) {
-  int *restrict pans = INTEGER(ans);
   for (ssize_t j = 0; j < len; ++j) {
     const int k = match[j];
     pans[off + j] = k < 0 ? (pna ? pna[(off + j) & namask] : NA_INTEGER)
@@ -152,11 +151,10 @@ static inline void kit_sw_write_int(SEXP ans, const int *match,
   }
 }
 
-static inline void kit_sw_write_dbl(SEXP ans, const int *match,
+static inline void kit_sw_write_dbl(double *restrict pans, const int *match,
                                     const R_xlen_t off, const R_xlen_t len,
                                     const double *pna, const ssize_t namask,
                                     double *const *ppo, const ssize_t *amask) {
-  double *restrict pans = REAL(ans);
   for (ssize_t j = 0; j < len; ++j) {
     const int k = match[j];
     pans[off + j] = k < 0 ? (pna ? pna[(off + j) & namask] : NA_REAL)
@@ -164,12 +162,11 @@ static inline void kit_sw_write_dbl(SEXP ans, const int *match,
   }
 }
 
-static inline void kit_sw_write_cplx(SEXP ans, const int *match,
+static inline void kit_sw_write_cplx(Rcomplex *restrict pans, const int *match,
                                      const R_xlen_t off, const R_xlen_t len,
                                      const Rcomplex *pna, const ssize_t namask,
                                      Rcomplex *const *ppo,
                                      const ssize_t *amask) {
-  Rcomplex *restrict pans = COMPLEX(ans);
   Rcomplex na_cplx;
   na_cplx.r = NA_REAL;
   na_cplx.i = NA_REAL;
@@ -228,40 +225,66 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
   const size_t target = (size_t)len_values * (len_values <= 4096 ? 4 : 2);
   while (cap < target) cap <<= 1;
   const size_t mask = cap - 1;
-  int *slots = (int*) R_Calloc(cap, int);
+  int *slots = (int*) R_alloc(cap, sizeof(int));
+  memset(slots, 0, cap * sizeof(int));
   int *match = (int*) R_alloc((size_t) nth_hash * KIT_SW_BLOCK, sizeof(int));
 
+  /* Materialise every user data pointer on the main thread before any OpenMP
+     loop: ALTREP accessors (LOGICAL/INTEGER/.../STRING_PTR_RO) are not
+     thread-safe and can allocate from R's heap. */
+  const int *px_lgl = NULL, *pv_lgl = NULL;
+  const int *px_int = NULL, *pv_int = NULL;
+  const double *px_dbl = NULL, *pv_dbl = NULL;
+  const Rcomplex *px_cplx = NULL, *pv_cplx = NULL;
+  const SEXP *px_str = NULL, *pv_str = NULL;
   switch (type_x) {
   case LGLSXP:
-    kit_sw_build_lgl(LOGICAL(sv), len_values, slots, mask);
+    px_lgl = LOGICAL(sx);
+    pv_lgl = LOGICAL(sv);
+    kit_sw_build_lgl(pv_lgl, len_values, slots, mask);
     break;
   case INTSXP:
-    kit_sw_build_int(INTEGER(sv), len_values, slots, mask);
+    px_int = INTEGER(sx);
+    pv_int = INTEGER(sv);
+    kit_sw_build_int(pv_int, len_values, slots, mask);
     break;
   case REALSXP:
-    kit_sw_build_dbl(REAL(sv), len_values, slots, mask);
+    px_dbl = REAL(sx);
+    pv_dbl = REAL(sv);
+    kit_sw_build_dbl(pv_dbl, len_values, slots, mask);
     break;
   case CPLXSXP:
-    kit_sw_build_cplx(COMPLEX(sv), len_values, slots, mask);
+    px_cplx = COMPLEX(sx);
+    pv_cplx = COMPLEX(sv);
+    kit_sw_build_cplx(pv_cplx, len_values, slots, mask);
     break;
   case STRSXP:
-    kit_sw_build_str(STRING_PTR_RO(sv), len_values, slots, mask);
+    px_str = STRING_PTR_RO(sx);
+    pv_str = STRING_PTR_RO(sv);
+    kit_sw_build_str(pv_str, len_values, slots, mask);
     break;
   default: // # nocov
-    R_Free(slots); // # nocov
     error("Type %s is not supported for hashed switch.", type2char(type_x)); // # nocov
   }
 
   /* Output pointers: a list of per-pair outputs, or a vector of pair results. */
   void *ppo_store = NULL;
   ssize_t *amask = (ssize_t*) R_alloc((size_t) len_values, sizeof(ssize_t));
-  const SEXP *ppo_vec = NULL;
+  int *pans_lgl = NULL, *pans_int = NULL;
+  double *pans_dbl = NULL;
+  Rcomplex *pans_cplx = NULL;
+  const int *pna_lgl = NULL, *pna_int = NULL;
+  const double *pna_dbl = NULL;
+  const Rcomplex *pna_cplx = NULL;
+  const SEXP *pna_str = NULL, *pna_vec = NULL;
   const int *ppo_int = NULL;
   const double *ppo_dbl = NULL;
   const Rcomplex *ppo_cplx = NULL;
   const SEXP *ppo_str = NULL;
   switch (type_ot) {
   case LGLSXP:
+    pans_lgl = LOGICAL(ans);
+    pna_lgl = nonna ? LOGICAL(na) : NULL;
     ppo_store = R_alloc((size_t) len_values, sizeof(int*));
     if (list_out) {
       for (ssize_t i = 0; i < len_values; ++i) {
@@ -277,6 +300,8 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
     }
     break;
   case INTSXP:
+    pans_int = INTEGER(ans);
+    pna_int = nonna ? INTEGER(na) : NULL;
     ppo_store = R_alloc((size_t) len_values, sizeof(int*));
     if (list_out) {
       for (ssize_t i = 0; i < len_values; ++i) {
@@ -292,6 +317,8 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
     }
     break;
   case REALSXP:
+    pans_dbl = REAL(ans);
+    pna_dbl = nonna ? REAL(na) : NULL;
     ppo_store = R_alloc((size_t) len_values, sizeof(double*));
     if (list_out) {
       for (ssize_t i = 0; i < len_values; ++i) {
@@ -307,6 +334,8 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
     }
     break;
   case CPLXSXP:
+    pans_cplx = COMPLEX(ans);
+    pna_cplx = nonna ? COMPLEX(na) : NULL;
     ppo_store = R_alloc((size_t) len_values, sizeof(Rcomplex*));
     if (list_out) {
       for (ssize_t i = 0; i < len_values; ++i) {
@@ -322,6 +351,7 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
     }
     break;
   case STRSXP:
+    pna_str = nonna ? STRING_PTR_RO(na) : NULL;
     ppo_store = R_alloc((size_t) len_values, sizeof(SEXP*));
     if (list_out) {
       for (ssize_t i = 0; i < len_values; ++i) {
@@ -337,6 +367,7 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
     }
     break;
   case VECSXP:
+    pna_vec = nonna ? SEXPPTR_RO(na) : NULL;
     ppo_store = R_alloc((size_t) len_values, sizeof(SEXP*));
     for (ssize_t i = 0; i < len_values; ++i) {
       ((const SEXP**) ppo_store)[i] = SEXPPTR_RO(po[i]);
@@ -344,7 +375,6 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
     }
     break;
   default: // # nocov
-    R_Free(slots); // # nocov
     error("Type %s is not supported for hashed switch output.", // # nocov
           type2char(type_ot)); // # nocov
   }
@@ -352,22 +382,22 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
   const R_xlen_t nblocks = (len_x + KIT_SW_BLOCK - 1) / KIT_SW_BLOCK;
   #define KIT_SW_MATCH_BLOCK() do { \
     switch (type_x) { \
-    case LGLSXP: kit_sw_match_lgl(LOGICAL(sx), LOGICAL(sv), slots, mask, mb, off, blen); break; \
-    case INTSXP: kit_sw_match_int(INTEGER(sx), INTEGER(sv), slots, mask, mb, off, blen); break; \
-    case REALSXP: kit_sw_match_dbl(REAL(sx), REAL(sv), slots, mask, mb, off, blen); break; \
-    case CPLXSXP: kit_sw_match_cplx(COMPLEX(sx), COMPLEX(sv), slots, mask, mb, off, blen); break; \
-    case STRSXP: kit_sw_match_str(STRING_PTR_RO(sx), STRING_PTR_RO(sv), slots, mask, mb, off, blen); break; \
+    case LGLSXP: kit_sw_match_lgl(px_lgl, pv_lgl, slots, mask, mb, off, blen); break; \
+    case INTSXP: kit_sw_match_int(px_int, pv_int, slots, mask, mb, off, blen); break; \
+    case REALSXP: kit_sw_match_dbl(px_dbl, pv_dbl, slots, mask, mb, off, blen); break; \
+    case CPLXSXP: kit_sw_match_cplx(px_cplx, pv_cplx, slots, mask, mb, off, blen); break; \
+    case STRSXP: kit_sw_match_str(px_str, pv_str, slots, mask, mb, off, blen); break; \
     } \
   } while (0)
 
   #define KIT_SW_WRITE_BLOCK() do { \
     switch (type_ot) { \
-    case LGLSXP: kit_sw_write_lgl(ans, mb, off, blen, nonna ? LOGICAL(na) : NULL, namask, (int*const*) ppo_store, amask); break; \
-    case INTSXP: kit_sw_write_int(ans, mb, off, blen, nonna ? INTEGER(na) : NULL, namask, (int*const*) ppo_store, amask); break; \
-    case REALSXP: kit_sw_write_dbl(ans, mb, off, blen, nonna ? REAL(na) : NULL, namask, (double*const*) ppo_store, amask); break; \
-    case CPLXSXP: kit_sw_write_cplx(ans, mb, off, blen, nonna ? COMPLEX(na) : NULL, namask, (Rcomplex*const*) ppo_store, amask); break; \
-    case STRSXP: kit_sw_write_str(ans, mb, off, blen, nonna ? STRING_PTR_RO(na) : NULL, namask, (const SEXP*const*) ppo_store, amask); break; \
-    case VECSXP: kit_sw_write_vec(ans, mb, off, blen, nonna ? SEXPPTR_RO(na) : NULL, namask, (const SEXP*const*) ppo_store, amask); break; \
+    case LGLSXP: kit_sw_write_lgl(pans_lgl, mb, off, blen, pna_lgl, namask, (int*const*) ppo_store, amask); break; \
+    case INTSXP: kit_sw_write_int(pans_int, mb, off, blen, pna_int, namask, (int*const*) ppo_store, amask); break; \
+    case REALSXP: kit_sw_write_dbl(pans_dbl, mb, off, blen, pna_dbl, namask, (double*const*) ppo_store, amask); break; \
+    case CPLXSXP: kit_sw_write_cplx(pans_cplx, mb, off, blen, pna_cplx, namask, (Rcomplex*const*) ppo_store, amask); break; \
+    case STRSXP: kit_sw_write_str(ans, mb, off, blen, pna_str, namask, (const SEXP*const*) ppo_store, amask); break; \
+    case VECSXP: kit_sw_write_vec(ans, mb, off, blen, pna_vec, namask, (const SEXP*const*) ppo_store, amask); break; \
     } \
   } while (0)
 
@@ -391,5 +421,4 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
   }
   #undef KIT_SW_MATCH_BLOCK
   #undef KIT_SW_WRITE_BLOCK
-  R_Free(slots);
 }

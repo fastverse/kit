@@ -708,11 +708,7 @@ SEXP countOccurDataFrameR(SEXP x) { // move to matrix if possible (change hash a
   const int *restrict v = INTEGER(mlv);
   size_t id = 0;
   for (R_xlen_t i = 0; i < len_i; ++i) {
-    R_xlen_t key = 0;
-    for (R_xlen_t j = 0; j < len_x; ++j) {
-      key ^= HASH(v[i+j*len_i],K)*97*(j+1);
-    }
-    id = HASH(key, K);
+    id = kit_hash_rows_int_raw(v, i, len_i, len_x, K);
     while (h[id]) {
       for (R_xlen_t j = 0; j < len_x; ++j) {
         if (v[h[id]-1+j*len_i] != v[i+j*len_i]) {

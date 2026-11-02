@@ -15,6 +15,7 @@ if (length(args) >= 1L && nzchar(args[[1]])) .libPaths(c(args[[1]], .libPaths())
 label <- if (length(args) >= 2L) args[[2]] else "current"
 reps <- if (length(args) >= 3L) as.integer(args[[3]]) else 5L
 library(kit)
+options(kit.nThread = 1L)
 has_dt <- requireNamespace("data.table", quietly = TRUE)
 
 bench <- function(f) {
@@ -75,7 +76,7 @@ for (n in c(2000000L, n10)) {
     row("nswitch_str", n, m, f = function() {
       do.call(nswitch, c(list(xs), pairs_s, list(default = 0L)))
     })
-    if (has_dt && m == 100L) {
+    if (has_dt) {
       row("ref_chmatch_str", n, m, f = function() data.table::chmatch(xs, vs))
     }
   }
@@ -89,13 +90,16 @@ for (n in c(2000000L, n10)) {
   df_int <- data.frame(a = xi, b = sample.int(1000L, n, TRUE))
   df_mix <- data.frame(a = xi, b = rnorm(n))
   row("funique_int", n, f = function() funique(xi))
-  row("funique_seq", n, f = function() funique(xseq))
+  row("funique_seq_cycle", n, f = function() funique(xseq))
   row("funique_str", n, f = function() funique(xs))
   row("uniqLen_int", n, f = function() uniqLen(xi))
   row("uniqLen_df_int", n, f = function() uniqLen(df_int))
   row("funique_df_int", n, f = function() funique(df_int))
   row("uniqLen_df_mixed", n, f = function() uniqLen(df_mix))
   row("funique_df_mixed", n, f = function() funique(df_mix))
+  row("ref_unique_int", n, f = function() length(unique(xi)))
+  row("ref_unique_df_int", n, f = function() nrow(unique(df_int)))
+  row("ref_unique_df_mixed", n, f = function() nrow(unique(df_mix)))
   if (has_dt) {
     row("ref_uniqueN_int", n, f = function() data.table::uniqueN(xi))
     row("ref_uniqueN_df_int", n, f = function() data.table::uniqueN(df_int))
