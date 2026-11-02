@@ -915,6 +915,17 @@ expect_identical(vswitch(c(1L, 2L, 3L), c(1L, 1L, 2L), c(10L, 20L, 30L)),
                  c(20L, 30L, NA_integer_), info="vswitch-0074.last-wins")
 expect_identical(vswitch(c(1L, 2L, 3L), c(1L, 1L, 2L), list(10L, 20L, 30L)),
                  c(20L, 30L, NA_integer_), info="vswitch-0074.last-wins-list")
+# issue #63 follow-up: duplicate nswitch values keep the last pair's result
+expect_identical(nswitch(c(1L, 2L, 1L), 1L, 10L, 1L, 20L, default = 0L),
+                 c(20L, 0L, 20L), info="nswitch-0074.last-wins-dup")
+# list input + logical list output used the pair index instead of the element
+# index when recycling vector outputs
+expect_identical(
+  nswitch(list(1L, 1L, 2L),
+          list(1L), list(TRUE, FALSE, TRUE),
+          list(2L), list(FALSE, FALSE, TRUE),
+          default = list(FALSE)),
+  list(TRUE, FALSE, TRUE), info="nswitch-0074.list-output-index")
 expect_identical(vswitch(c(1L, 2L, 3L, NA_integer_), c(1L, 2L), c(10L, 20L), 99L),
                  c(10L, 20L, 99L, 99L), info="vswitch-0074.default")
 expect_identical(vswitch(c(1L, 2L, 3L, 4L), c(1L, 2L), c(10L, 20L), 91:94),

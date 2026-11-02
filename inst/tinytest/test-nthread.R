@@ -81,6 +81,17 @@ expect_identical(
   nswitch(xi, 1L, 10L, 2L, 20L, default = 0L, nThread = 2L),
   info="nthread-nswitch-002"
 )
+# duplicate values: last matching pair wins; the pair loop is serial so the
+# result cannot depend on thread scheduling (issue #63 follow-up)
+expect_identical(
+  nswitch(rep(1L, n), 1L, 10L, 1L, 20L, default = 0L, nThread = 1L),
+  nswitch(rep(1L, n), 1L, 10L, 1L, 20L, default = 0L, nThread = 2L),
+  info="nthread-nswitch-dup-001"
+)
+expect_true(
+  all(nswitch(rep(1L, n), 1L, 10L, 1L, 20L, default = 0L, nThread = 2L) == 20L),
+  info="nthread-nswitch-dup-002"
+)
 
 # --- charToFact ---
 expect_identical(

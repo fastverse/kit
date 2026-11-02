@@ -37,16 +37,16 @@ topn(vec, n=6L, decreasing=TRUE, hasna=TRUE, index=TRUE)
 
   For inputs longer than \code{.Machine$integer.max}, \code{topn()} keeps a
   heap of at most \code{n} entries instead, so memory stays proportional to
-  \code{n} (about 24 bytes per entry plus 8 bytes per returned index). Class
-  attributes are ignored and the stored values are compared. Unlike
+  \code{n} (about 24 bytes per entry plus 8 bytes per returned index). Unlike
   \code{base::order()}, \code{decreasing = TRUE} works for these inputs. For
   \code{n} above roughly three quarters of the input length this heap can use
   more memory than a full-length \code{order()} index, and \code{order()} is
   faster for \code{decreasing = FALSE}.
 
-  For classed numeric vectors shorter than \code{.Machine$integer.max},
-  \code{xtfrm()} is applied once before selection, so their order matches
-  \code{order()}/\code{xtfrm()}.
+  For classed numeric vectors, \code{xtfrm()} is applied once before
+  selection, so their order matches \code{order()}/\code{xtfrm()}. This also
+  applies to long inputs; a classed long vector whose \code{xtfrm()} result is
+  not integer or double errors.
 }
 \value{
   If \code{index = TRUE}, an integer vector of the indices of the \code{n}

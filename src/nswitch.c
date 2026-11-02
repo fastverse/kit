@@ -148,10 +148,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     switch(type_x) {
     case LGLSXP: {
       const int *restrict px = LOGICAL(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = LOGICAL(PTR_ETL(args, 2*i+1));
         const int *restrict pvalues = LOGICAL(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -161,10 +161,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case INTSXP: {
       const int *restrict px = INTEGER(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = LOGICAL(PTR_ETL(args, 2*i+1));
         const int *restrict pvalues = INTEGER(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -174,10 +174,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case REALSXP: {
       const double *restrict px = REAL(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = LOGICAL(PTR_ETL(args, 2*i+1));
         const double *restrict pvalues = REAL(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -187,10 +187,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case CPLXSXP: {
       const Rcomplex *restrict px = COMPLEX(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = LOGICAL(PTR_ETL(args, 2*i+1));
         const Rcomplex *restrict pvalues = COMPLEX(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (EQUAL_CPLX(px[j], pvalues[0])) {
             pans[j] = pto[j & amask[i]];
@@ -200,10 +200,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case STRSXP: {
       const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = LOGICAL(PTR_ETL(args, 2*i+1));
         const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -218,7 +218,7 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
         const SEXP *restrict pvalues = SEXPPTR_RO(PTR_ETL(args, 2*i));
         for (ssize_t j = 0; j < len_x; ++j) {
           if (R_compute_identical(px[j],pvalues[0],0)) {
-            pans[j] = pto[i & amask[i]];
+            pans[j] = pto[j & amask[i]];
           }
         }
       }    
@@ -241,10 +241,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     switch(type_x) {
     case LGLSXP: {
       const int *restrict px = LOGICAL(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = INTEGER(PTR_ETL(args, 2*i+1));
         const int *restrict pvalues = LOGICAL(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -254,10 +254,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case INTSXP: {
       const int *restrict px = INTEGER(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = INTEGER(PTR_ETL(args, 2*i+1));
         const int *restrict pvalues = INTEGER(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -267,10 +267,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case REALSXP: {
       const double *restrict px = REAL(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = INTEGER(PTR_ETL(args, 2*i+1));
         const double *restrict pvalues = REAL(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -280,10 +280,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case CPLXSXP: {
       const Rcomplex *restrict px = COMPLEX(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = INTEGER(PTR_ETL(args, 2*i+1));
         const Rcomplex *restrict pvalues = COMPLEX(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (EQUAL_CPLX(px[j], pvalues[0])) {
             pans[j] = pto[j & amask[i]];
@@ -293,10 +293,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case STRSXP: {
       const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = INTEGER(PTR_ETL(args, 2*i+1));
         const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -334,10 +334,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     switch(type_x) {
     case LGLSXP: {
       const int *restrict px = LOGICAL(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const double *restrict pto = REAL(PTR_ETL(args, 2*i+1));
         const int *restrict pvalues = LOGICAL(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -347,10 +347,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case INTSXP: {
       const int *restrict px = INTEGER(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const double *restrict pto = REAL(PTR_ETL(args, 2*i+1));
         const int *restrict pvalues = INTEGER(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -360,10 +360,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case REALSXP: {
       const double *restrict px = REAL(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const double *restrict pto = REAL(PTR_ETL(args, 2*i+1));
         const double *restrict pvalues = REAL(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -373,10 +373,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case CPLXSXP: {
       const Rcomplex *restrict px = COMPLEX(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const double *restrict pto = REAL(PTR_ETL(args, 2*i+1));
         const Rcomplex *restrict pvalues = COMPLEX(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (EQUAL_CPLX(px[j], pvalues[0])) {
             pans[j] = pto[j & amask[i]];
@@ -386,10 +386,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case STRSXP: {
       const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const double *restrict pto = REAL(PTR_ETL(args, 2*i+1));
         const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -428,10 +428,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     switch(type_x) {
     case LGLSXP: {
       const int *restrict px = LOGICAL(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const Rcomplex *restrict pto = COMPLEX(PTR_ETL(args, 2*i+1));
         const int *restrict pvalues = LOGICAL(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -441,10 +441,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case INTSXP: {
       const int *restrict px = INTEGER(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const Rcomplex *restrict pto = COMPLEX(PTR_ETL(args, 2*i+1));
         const int *restrict pvalues = INTEGER(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -454,10 +454,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case REALSXP: {
       const double *restrict px = REAL(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const Rcomplex *restrict pto = COMPLEX(PTR_ETL(args, 2*i+1));
         const double *restrict pvalues = REAL(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
@@ -467,10 +467,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case CPLXSXP: {
       const Rcomplex *restrict px = COMPLEX(x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const Rcomplex *restrict pto = COMPLEX(PTR_ETL(args, 2*i+1));
         const Rcomplex *restrict pvalues = COMPLEX(PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (EQUAL_CPLX(px[j],pvalues[0])) {
             pans[j] = pto[j & amask[i]];
@@ -480,10 +480,10 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
     } break;
     case STRSXP: {
       const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
-      OMP_PARALLEL_FOR(nth)
       for (ssize_t i = 0; i < n; ++i) {
         const Rcomplex *restrict pto = COMPLEX(PTR_ETL(args, 2*i+1));
         const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i));
+        OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             pans[j] = pto[j & amask[i]];
