@@ -1,6 +1,12 @@
-# kit (development version)
+# kit 0.0.23 <small>(2026-11-02)</small>
 
 ### Bug Fixes
+
+- Fix `nswitch()` with duplicate values and `nThread > 1`: the outer loop over value/output pairs is now serial and atomic-output pairs are parallelised over the elements of `x`, so the last matching pair wins deterministically. Also fix the list-input/logical-output path reading output element `i` instead of `j` (#63 follow-up).
+
+- Fix `fduplicated()` on logical vectors longer than `INT_MAX`: the generic path used an `int` loop index and stored `i + 1` in an `int` table slot, so a multi-gigabyte logical vector could overflow and read out of bounds. It now raises the standard "Long vector not supported yet" error (#61 follow-up).
+
+- Apply `xtfrm` to classed vectors before the `topn()` long-vector heap path, so custom classes follow `order()` semantics there too; classed long vectors whose `xtfrm` is not integer/double now error clearly instead of falling back to the integer-index `order()` path (#83 follow-up).
 
 - Fix `nswitch()` segfaulting when called without value/output pairs (e.g. `nswitch(1:3)` or `nswitch(1:3, default = 0L)`): the argument count is now validated before any pair is read, and the call errors with a clear message (#87).
 
@@ -23,6 +29,8 @@
 - Guard the mixed-type data.frame paths in `funique`/`fduplicated` (`dupDataFrameR`), `uniqLen` (`dupLenDataFrameR`), and `countOccur` (`countOccurDataFrameR`): with more than `INT_MAX` rows the row count was truncated to `int` inside `allocMatrix()`, so 2^31-2^32 rows errored with R's confusing "negative extents to matrix" message (and above 2^32 rows the mixed `funique`/`uniqLen` logical-column case could write out of bounds, which the per-column 2^30 guard only prevents for other types). These paths now stop up front with the standard "Long vector not supported yet" error, before any allocation, when the rows exceed `INT_MAX` or the matrix would exceed `INT_MAX` cells — the same bound the all-same-type branch has applied to `dfToMatrix()` since the length audit (#61), so the same data.frame now fails the same way regardless of whether its columns share one type (#82).
 
 ### Notes
+
+- Mix hashed keys with a 32-bit avalanche before indexing the growable duplicate tables. The previous top-bits-only multiplicative hash mapped sequential integer IDs to only ~16% of the slots in a power-of-two table, so `funique()`/`fduplicated()`/`uniqLen()` fell back to long linear-probe scans on common ID-like data. The tables still start at 256 slots and grow on demand; adding `tools/benchmark-unique.R` keeps this case visible.
 
 - Document `?kit` with a package page that explains OpenMP threads, platform support, encoding behavior, and the main functions. Add "OpenMP and threads" and "Platforms" sections to the README, and add `library(kit)` to the first README example (#90).
 
