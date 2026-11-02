@@ -33,6 +33,16 @@ expect_identical(funique(seq_len(10000L)), seq_len(10000L), info = "longv-0001.0
 expect_identical(uniqLen(seq_len(10000L)), 10000L, info = "longv-0001.007")
 expect_identical(topn(seq_len(10000L), 5L, decreasing = FALSE, hasna = FALSE), 1:5, info = "longv-0001.008")
 
+# classed long vectors must not silently take the integer-index order() path:
+# the xtfrm result is checked before selection and a non-numeric/short result
+# errors. seq_len() is a compact ALTREP sequence, so this allocates nothing.
+nlong <- 2^31 + 1000000
+xl <- structure(seq_len(nlong), class = "kit_topn_long_bad")
+registerS3method("xtfrm", "kit_topn_long_bad", function(x) 1L)
+expect_error(topn(xl, 2L), pattern = "Classed long vectors are not supported by 'topn()'.",
+             fixed = TRUE, info = "longv-0001.126")
+rm(xl, nlong)
+
 # a data.frame with > INT_MAX cells is refused up front. All columns share one
 # small logical vector, so building it is cheap and the error fires before
 # dfToMatrix allocates the matrix.
@@ -93,6 +103,8 @@ invisible(gc())
 lg <- rep(TRUE, n)
 expect_identical(funique(lg), TRUE, info = "longv-0001.106")
 expect_identical(uniqLen(lg), 1L, info = "longv-0001.107")
+expect_error(fduplicated(lg), pattern = "Long vector not supported yet",
+             fixed = TRUE, info = "longv-0001.125")
 rm(lg)
 invisible(gc())
 

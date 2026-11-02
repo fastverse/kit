@@ -212,19 +212,11 @@ SEXP topnR(SEXP vec, SEXP n, SEXP dec, SEXP hasna, SEXP env) {
   const bool dcr = asLogical(dec);
   SEXPTYPE tvec = UTYPEOF(vec);
   bool vhasna = asLogical(hasna);
-  // len1 > INT_MAX: ans is INTSXP and cannot hold indices into a long vector;
-  // the bounded-heap selection below returns double indices like base::order()
-  // with missing values last (order(na.last = TRUE) semantics) and uses memory
-  // proportional to n instead of a full-length order() index (~8*len1 bytes,
-  // ~17 GB for 2^31 elements) (#83). Unlike order(), it also supports
-  // decreasing = TRUE, which errors on long vectors in base R.
-  if (len1 > INT_MAX && (tvec == INTSXP || tvec == REALSXP)) {
-    return topnLong(vec, len0, dcr);
-  }
-  // Classed vectors must follow order()/xtfrm on every non-long path. Apply
-  // xtfrm once and keep the fast selector: for identity methods (Date,
-  // POSIXct, factor) this avoids sorting the whole vector just to return a
-  // few indices, and it still matches order() for custom classes.
+  // Classed vectors must follow order()/xtfrm on every path, including the
+  // long-vector heap below. Apply xtfrm once and keep the fast selector: for
+  // identity methods (Date, POSIXct, factor) this avoids sorting the whole
+  // vector just to return a few indices, and it still matches order() for
+  // custom classes.
   int nprotect = 0;
   if (getAttrib(vec, R_ClassSymbol) != R_NilValue &&
       (tvec == INTSXP || tvec == REALSXP)) {
@@ -238,8 +230,22 @@ SEXP topnR(SEXP vec, SEXP n, SEXP dec, SEXP hasna, SEXP env) {
       nprotect = 2;
     } else {
       UNPROTECT(2);
+      if (len1 > INT_MAX) {
+        error("Classed long vectors are not supported by 'topn()'.");
+      }
       return topnRadix(vec, len0, dcr);
     }
+  }
+  // len1 > INT_MAX: ans is INTSXP and cannot hold indices into a long vector;
+  // the bounded-heap selection below returns double indices like base::order()
+  // with missing values last (order(na.last = TRUE) semantics) and uses memory
+  // proportional to n instead of a full-length order() index (~8*len1 bytes,
+  // ~17 GB for 2^31 elements) (#83). Unlike order(), it also supports
+  // decreasing = TRUE, which errors on long vectors in base R.
+  if (len1 > INT_MAX && (tvec == INTSXP || tvec == REALSXP)) {
+    SEXP ans = topnLong(vec, len0, dcr);
+    UNPROTECT(nprotect);
+    return ans;
   }
   if ( ((len0 > 2000 && !vhasna) || (len0 > 1500 && vhasna)) && (tvec == INTSXP || tvec == REALSXP)) {
     SEXP ans = topnRadix(vec, len0, dcr);
