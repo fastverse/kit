@@ -243,9 +243,10 @@ SEXP topnR(SEXP vec, SEXP n, SEXP dec, SEXP hasna, SEXP env) {
   // ~17 GB for 2^31 elements) (#83). Unlike order(), it also supports
   // decreasing = TRUE, which errors on long vectors in base R.
   if (len1 > INT_MAX && (tvec == INTSXP || tvec == REALSXP)) {
-    SEXP ans = topnLong(vec, len0, dcr);
-    UNPROTECT(nprotect);
-    return ans;
+    // only exercised by KIT_TEST_LONG_VECTOR: the heap scan is O(len1)
+    SEXP ans = topnLong(vec, len0, dcr); // # nocov
+    UNPROTECT(nprotect); // # nocov
+    return ans; // # nocov
   }
   if ( ((len0 > 2000 && !vhasna) || (len0 > 1500 && vhasna)) && (tvec == INTSXP || tvec == REALSXP)) {
     SEXP ans = topnRadix(vec, len0, dcr);

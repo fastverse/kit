@@ -965,7 +965,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
     }
   } else if (tx == LGLSXP) {
     if (n > INT_MAX) {
-      error("Length of 'x' is too large. (Long vector not supported yet)");
+      error("Length of 'x' is too large. (Long vector not supported yet)"); // # nocov
     }
     M = 4;
     K = 2;
@@ -1433,7 +1433,7 @@ SEXP dupVecIndexOnlyR(SEXP x) {
     }
   } else if (tx == LGLSXP) {
     if (n > INT_MAX) {
-      error("Length of 'x' is too large. (Long vector not supported yet)");
+      error("Length of 'x' is too large. (Long vector not supported yet)"); // # nocov
     }
     M = 4;
     K = 2;
