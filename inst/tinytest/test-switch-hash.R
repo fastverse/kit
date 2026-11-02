@@ -216,3 +216,14 @@ expect_identical(
                      list(default = dflt))),
   ref_na(x_i, vals_i, as.list(outs_i), default = dflt),
   info = "hash-nswitch-vector-default")
+
+# Unsupported output types also keep the value-major error at 9+ pairs.
+expect_error(vswitch(1:9, 1:9, as.raw(1:9)),
+             pattern = "Type raw is not supported for argument 'outputs'",
+             fixed = TRUE, info = "hash-vswitch-raw-out")
+expect_error(
+  do.call(nswitch, c(list(1:9),
+                     unlist(lapply(1:9, function(i) list(i, as.raw(i))),
+                            recursive = FALSE))),
+  pattern = "Type raw is not supported for argument 'outputs'",
+  fixed = TRUE, info = "hash-nswitch-raw-out")
