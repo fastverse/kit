@@ -355,3 +355,7 @@ extern SEXP clearMappingObjectR(SEXP ext, SEXP verboseArg);
 
 bool isMixEnc(SEXP x);
 SEXP enc2UTF8(SEXP x);
+void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
+                     SEXPTYPE type_x, SEXPTYPE type_o, R_xlen_t len_x,
+                     R_xlen_t len_values, R_xlen_t len_na, int nth, bool nonna,
+                     bool utfcon, SEXP xans, SEXP vans);

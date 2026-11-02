@@ -133,6 +133,42 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
   }
   SEXP ans = PROTECT(allocVector(type0, len_x));
   copyMostAttrib(PTR_ETL(args, 1), ans);
+  if (n > 8 && len_x <= INT_MAX && type_x != VECSXP) {
+    SEXP values = PROTECT(allocVector(type_x, n));
+    SEXP outputs = PROTECT(allocVector(VECSXP, n));
+    switch (type_x) {
+    case LGLSXP: {
+      int *restrict pv = LOGICAL(values);
+      for (int i = 0; i < n; ++i) pv[i] = LOGICAL(PTR_ETL(args, 2*i))[0];
+    } break;
+    case INTSXP: {
+      int *restrict pv = INTEGER(values);
+      for (int i = 0; i < n; ++i) pv[i] = INTEGER(PTR_ETL(args, 2*i))[0];
+    } break;
+    case REALSXP: {
+      double *restrict pv = REAL(values);
+      for (int i = 0; i < n; ++i) pv[i] = REAL(PTR_ETL(args, 2*i))[0];
+    } break;
+    case CPLXSXP: {
+      Rcomplex *restrict pv = COMPLEX(values);
+      for (int i = 0; i < n; ++i) pv[i] = COMPLEX(PTR_ETL(args, 2*i))[0];
+    } break;
+    case STRSXP: {
+      for (int i = 0; i < n; ++i) {
+        SET_STRING_ELT(values, i,
+                       STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i))[0]);
+      }
+    } break;
+    }
+    for (int i = 0; i < n; ++i) {
+      SET_VECTOR_ELT(outputs, i, PTR_ETL(args, 2*i+1));
+    }
+    kit_switch_hash(ans, x, values, outputs, na, type_x, VECSXP, len_x, n,
+                    len_na, nth, nonna, utfcon, xans, vans);
+    UNPROTECT(2);
+    UNPROTECT(nprotect + 3);
+    return ans;
+  }
   switch(type0) {
   /*
    *  This part is for LOGICAL
