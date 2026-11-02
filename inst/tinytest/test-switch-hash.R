@@ -135,3 +135,60 @@ expect_identical(ns_v(x_i), exp_vec, info = "hash-nswitch-vector-output")
 xl <- as.list(x_i)
 expect_identical(vswitch(xl, as.list(vals_i), outs_i), exp_i,
                  info = "hash-vswitch-list-input")
+
+# Every output type goes through its own writer on the hash path.
+exp_lgl <- ref_na(x_i, vals_i, as.list(as.logical(outs_i %% 2)))
+expect_identical(vswitch(x_i, vals_i, as.logical(outs_i %% 2)), exp_lgl,
+                 info = "hash-vswitch-out-lgl")
+exp_dbl <- ref_na(x_i, vals_i, as.list(as.double(outs_i)))
+expect_identical(vswitch(x_i, vals_i, as.double(outs_i)), exp_dbl,
+                 info = "hash-vswitch-out-dbl")
+exp_chr <- ref_na(x_i, vals_i, as.list(as.character(outs_i)))
+expect_identical(vswitch(x_i, vals_i, as.character(outs_i)), exp_chr,
+                 info = "hash-vswitch-out-str")
+expect_identical(vswitch(x_s, vals_s, as.character(outs_s)),
+                 ref_na(x_s, vals_s, as.list(as.character(outs_s))),
+                 info = "hash-vswitch-str-out-str")
+exp_cplx <- ref_num(x_c, vals_c, as.list(as.complex(outs_c)))
+expect_kit_equal(vswitch(x_c, vals_c, as.complex(outs_c)), exp_cplx,
+                 info = "hash-vswitch-out-cplx")
+exp_dbl_d <- ref_num(x_d, vals_d, as.list(as.double(outs_d)))
+expect_identical(vswitch(x_d, vals_d, as.double(outs_d)), exp_dbl_d,
+                 info = "hash-vswitch-dbl-out-dbl")
+out_nested <- lapply(outs_i, function(v) list(v))
+idx_nested <- ref_na(x_i, vals_i, as.list(seq_along(vals_i)), default = NA_integer_)
+exp_nested <- lapply(idx_nested, function(k) if (is.na(k)) NULL else out_nested[[k]][[1]])
+expect_identical(vswitch(x_i, vals_i, out_nested), exp_nested,
+                 info = "hash-vswitch-out-list")
+
+# Unsupported input types keep the value-major error message, even when there
+# are enough pairs to select the hash path.
+expect_error(vswitch(as.raw(rep(0, 9L)), as.raw(rep(0, 9L)), 1:9),
+             pattern = "Type raw is not supported for argument 'x'.",
+             fixed = TRUE, info = "hash-vswitch-raw")
+
+# List outputs use the same writers in list-out mode.
+expect_identical(vswitch(x_i, vals_i, as.list(as.logical(outs_i %% 2))),
+                 ref_na(x_i, vals_i, as.list(as.logical(outs_i %% 2))),
+                 info = "hash-vswitch-list-out-lgl")
+expect_identical(vswitch(x_i, vals_i, as.list(as.character(outs_i))),
+                 ref_na(x_i, vals_i, as.list(as.character(outs_i))),
+                 info = "hash-vswitch-list-out-str")
+expect_kit_equal(vswitch(x_c, vals_c, as.list(as.complex(outs_c))),
+                 ref_num(x_c, vals_c, as.list(as.complex(outs_c))),
+                 info = "hash-vswitch-list-out-cplx")
+
+# nswitch copies each scalar value before hashing; cover every atomic type.
+expect_identical(
+  nswitch(c(TRUE, FALSE, NA), TRUE, 1L, FALSE, 2L, NA, 3L, TRUE, 4L,
+          FALSE, 5L, NA, 6L, TRUE, 7L, FALSE, 8L, NA, 9L, default = 0L),
+  c(7L, 8L, 9L), info = "hash-nswitch-lgl")
+expect_identical(
+  nswitch(c(1, 9, NA, NaN, 0), 1, 1L, 2, 2L, 3, 3L, 4, 4L, 5, 5L,
+          6, 6L, 7, 7L, 8, 8L, 9, 9L, default = 0L),
+  c(1L, 9L, 0L, 0L, 0L), info = "hash-nswitch-dbl")
+expect_identical(
+  nswitch(c(1+0i, 9+0i, NA_complex_, 0+0i),
+          1+0i, 1L, 2+0i, 2L, 3+0i, 3L, 4+0i, 4L, 5+0i, 5L,
+          6+0i, 6L, 7+0i, 7L, 8+0i, 8L, 9+0i, 9L, default = 0L),
+  c(1L, 9L, 0L, 0L), info = "hash-nswitch-cplx")

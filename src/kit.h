@@ -48,6 +48,7 @@
 #define UTYPEOF(x) ((unsigned)TYPEOF(x))
 #define IS_BOOL(x) (XLENGTH(x)==1 && TYPEOF(x)==LGLSXP && LOGICAL(x)[0]!=NA_LOGICAL)
 #define IS_VALID_TYPE(x) ((x) == LGLSXP || (x)==INTSXP || (x)==REALSXP || (x)==CPLXSXP || (x)==STRSXP || (x)==VECSXP)
+#define IS_SWITCH_HASH_TYPE(x) ((x) == LGLSXP || (x)==INTSXP || (x)==REALSXP || (x)==CPLXSXP || (x)==STRSXP)
 #define PTR_ETL(x, y) (((const SEXP *)DATAPTR_RO(x))[y])
 #define SEXPPTR_RO(x) ((const SEXP *)DATAPTR_RO(x))
 #define ISNA_COMPLEX(x) (ISNA(x.r) || ISNA(x.i))

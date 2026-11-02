@@ -1,3 +1,13 @@
+# kit 0.0.24 <small>(development version)</small>
+
+### Notes
+
+- Speed up `vswitch()` and `nswitch()` when there are many value/output pairs. For more than 8 pairs the implementation builds a value-to-last-pair hash map once and scans `x` in cache-sized blocks instead of comparing `x` against every value. Matching semantics are unchanged: integer/logical `NA` still matches `NA`, doubles/complex canonicalise `-0` and never match `NA`/`NaN`, strings compare `CHARSXP` identity, duplicate values keep the last pair, and threaded results stay deterministic. On 2m elements, 20 values are about 2x faster and 100 values 4-5x faster; the value-major path is kept for 8 or fewer pairs.
+
+- Speed up `funique()`/`fduplicated()`/`uniqLen()` on data frames and matrices. Row hashes now use a 64-bit rolling mix instead of mixing every cell and mixing again, and a bounded sample estimates cardinality so high-cardinality inputs allocate the final table once while low-cardinality inputs keep the small grow-on-demand table. On 10m rows, 2-column integer data frames improve about 2.4x and mixed integer/double frames about 2.3x.
+
+- Add `tools/benchmark-core.R`, a manual benchmark covering 2m/10m elements, 5/20/100 switch values, integer/string/factor/NA inputs, data frames, and 1/2/4 threads. It is not run in CI.
+
 # kit 0.0.23 <small>(2026-11-02)</small>
 
 ### Bug Fixes

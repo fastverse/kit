@@ -247,9 +247,9 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
   case STRSXP:
     kit_sw_build_str(STRING_PTR_RO(sv), len_values, slots, mask);
     break;
-  default:
-    R_Free(slots);
-    error("Type %s is not supported for hashed switch.", type2char(type_x));
+  default: // # nocov
+    R_Free(slots); // # nocov
+    error("Type %s is not supported for hashed switch.", type2char(type_x)); // # nocov
   }
 
   /* Output pointers: a list of per-pair outputs, or a vector of pair results. */
@@ -260,7 +260,6 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
   const double *ppo_dbl = NULL;
   const Rcomplex *ppo_cplx = NULL;
   const SEXP *ppo_str = NULL;
-  const SEXP *ppo_list = NULL;
   switch (type_ot) {
   case LGLSXP:
     ppo_store = R_alloc((size_t) len_values, sizeof(int*));
@@ -339,23 +338,15 @@ void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
     break;
   case VECSXP:
     ppo_store = R_alloc((size_t) len_values, sizeof(SEXP*));
-    if (list_out) {
-      for (ssize_t i = 0; i < len_values; ++i) {
-        ((const SEXP**) ppo_store)[i] = SEXPPTR_RO(po[i]);
-        amask[i] = xlength(po[i]) > 1 ? SSIZE_MAX : 0;
-      }
-    } else {
-      ppo_list = SEXPPTR_RO(outputs);
-      for (ssize_t i = 0; i < len_values; ++i) {
-        ((const SEXP**) ppo_store)[i] = (const SEXP*) ppo_list + i;
-        amask[i] = 0;
-      }
+    for (ssize_t i = 0; i < len_values; ++i) {
+      ((const SEXP**) ppo_store)[i] = SEXPPTR_RO(po[i]);
+      amask[i] = xlength(po[i]) > 1 ? SSIZE_MAX : 0;
     }
     break;
-  default:
-    R_Free(slots);
-    error("Type %s is not supported for hashed switch output.",
-          type2char(type_ot));
+  default: // # nocov
+    R_Free(slots); // # nocov
+    error("Type %s is not supported for hashed switch output.", // # nocov
+          type2char(type_ot)); // # nocov
   }
 
   const R_xlen_t nblocks = (len_x + KIT_SW_BLOCK - 1) / KIT_SW_BLOCK;
