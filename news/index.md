@@ -1,8 +1,32 @@
 # Changelog
 
-## kit (development version)
+## kit 0.0.23 (2026-11-02)
 
 #### Bug Fixes
+
+- Fix [`nswitch()`](https://fastverse.org/kit/reference/vswitch.md) with
+  duplicate values and `nThread > 1`: the outer loop over value/output
+  pairs is now serial and atomic-output pairs are parallelised over the
+  elements of `x`, so the last matching pair wins deterministically.
+  Also fix the list-input/logical-output path reading output element `i`
+  instead of `j` ([\#63](https://github.com/fastverse/kit/issues/63)
+  follow-up).
+
+- Fix [`fduplicated()`](https://fastverse.org/kit/reference/funique.md)
+  on logical vectors longer than `INT_MAX`: the generic path used an
+  `int` loop index and stored `i + 1` in an `int` table slot, so a
+  multi-gigabyte logical vector could overflow and read out of bounds.
+  It now raises the standard “Long vector not supported yet” error
+  ([\#61](https://github.com/fastverse/kit/issues/61) follow-up).
+
+- Apply `xtfrm` to classed vectors before the
+  [`topn()`](https://fastverse.org/kit/reference/topn.md) long-vector
+  heap path, so custom classes follow
+  [`order()`](https://rdrr.io/r/base/order.html) semantics there too;
+  classed long vectors whose `xtfrm` is not integer/double now error
+  clearly instead of falling back to the integer-index
+  [`order()`](https://rdrr.io/r/base/order.html) path
+  ([\#83](https://github.com/fastverse/kit/issues/83) follow-up).
 
 - Fix [`nswitch()`](https://fastverse.org/kit/reference/vswitch.md)
   segfaulting when called without value/output pairs
@@ -93,6 +117,15 @@
   ([\#82](https://github.com/fastverse/kit/issues/82)).
 
 #### Notes
+
+- Mix hashed keys with a 32-bit avalanche before indexing the growable
+  duplicate tables. The previous top-bits-only multiplicative hash
+  mapped sequential integer IDs to only ~16% of the slots in a
+  power-of-two table, so
+  [`funique()`](https://fastverse.org/kit/reference/funique.md)/[`fduplicated()`](https://fastverse.org/kit/reference/funique.md)/[`uniqLen()`](https://fastverse.org/kit/reference/funique.md)
+  fell back to long linear-probe scans on common ID-like data. The
+  tables still start at 256 slots and grow on demand; adding
+  `tools/benchmark-unique.R` keeps this case visible.
 
 - Document [`?kit`](https://fastverse.org/kit/reference/kit-package.md)
   with a package page that explains OpenMP threads, platform support,

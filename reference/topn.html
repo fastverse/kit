@@ -98,15 +98,15 @@ The resulting order is the same as
   use much more memory than the fast path.</p>
 <p>For inputs longer than <code>.Machine$integer.max</code>, <code>topn()</code> keeps a
   heap of at most <code>n</code> entries instead, so memory stays proportional to
-  <code>n</code> (about 24 bytes per entry plus 8 bytes per returned index). Class
-  attributes are ignored and the stored values are compared. Unlike
+  <code>n</code> (about 24 bytes per entry plus 8 bytes per returned index). Unlike
   <code><a href="https://rdrr.io/r/base/order.html" class="external-link">base::order()</a></code>, <code>decreasing = TRUE</code> works for these inputs. For
   <code>n</code> above roughly three quarters of the input length this heap can use
   more memory than a full-length <code><a href="https://rdrr.io/r/base/order.html" class="external-link">order()</a></code> index, and <code><a href="https://rdrr.io/r/base/order.html" class="external-link">order()</a></code> is
   faster for <code>decreasing = FALSE</code>.</p>
-<p>For classed numeric vectors shorter than <code>.Machine$integer.max</code>,
-  <code><a href="https://rdrr.io/r/base/xtfrm.html" class="external-link">xtfrm()</a></code> is applied once before selection, so their order matches
-  <code><a href="https://rdrr.io/r/base/order.html" class="external-link">order()</a></code>/<code><a href="https://rdrr.io/r/base/xtfrm.html" class="external-link">xtfrm()</a></code>.</p>
+<p>For classed numeric vectors, <code><a href="https://rdrr.io/r/base/xtfrm.html" class="external-link">xtfrm()</a></code> is applied once before
+  selection, so their order matches <code><a href="https://rdrr.io/r/base/order.html" class="external-link">order()</a></code>/<code><a href="https://rdrr.io/r/base/xtfrm.html" class="external-link">xtfrm()</a></code>. This also
+  applies to long inputs; a classed long vector whose <code><a href="https://rdrr.io/r/base/xtfrm.html" class="external-link">xtfrm()</a></code> result is
+  not integer or double errors.</p>
     </div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>

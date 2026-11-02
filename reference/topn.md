@@ -56,8 +56,7 @@ much more memory than the fast path.
 
 For inputs longer than `.Machine$integer.max`, `topn()` keeps a heap of
 at most `n` entries instead, so memory stays proportional to `n` (about
-24 bytes per entry plus 8 bytes per returned index). Class attributes
-are ignored and the stored values are compared. Unlike
+24 bytes per entry plus 8 bytes per returned index). Unlike
 [`base::order()`](https://rdrr.io/r/base/order.html),
 `decreasing = TRUE` works for these inputs. For `n` above roughly three
 quarters of the input length this heap can use more memory than a
@@ -65,10 +64,13 @@ full-length [`order()`](https://rdrr.io/r/base/order.html) index, and
 [`order()`](https://rdrr.io/r/base/order.html) is faster for
 `decreasing = FALSE`.
 
-For classed numeric vectors shorter than `.Machine$integer.max`,
+For classed numeric vectors,
 [`xtfrm()`](https://rdrr.io/r/base/xtfrm.html) is applied once before
 selection, so their order matches
 [`order()`](https://rdrr.io/r/base/order.html)/[`xtfrm()`](https://rdrr.io/r/base/xtfrm.html).
+This also applies to long inputs; a classed long vector whose
+[`xtfrm()`](https://rdrr.io/r/base/xtfrm.html) result is not integer or
+double errors.
 
 ## Value
 
