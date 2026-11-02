@@ -698,3 +698,26 @@ local({
   expect_identical(uniqLen(df), nrow(unique(df)), info = "uniqLen-0074.grow-df")
 })
 
+
+# issue #107: large high-cardinality inputs pre-size the row table while
+# low-cardinality inputs keep the grow-on-demand path. Both must match base R.
+local({
+  n <- 2000L
+  hi <- data.frame(a = seq_len(n), b = seq_len(n) * 31L)
+  lo <- data.frame(a = rep(1:5, length.out = n),
+                   b = rep(1:3, length.out = n))
+  mix <- data.frame(a = seq_len(n), b = as.numeric(seq_len(n)) / 3)
+  for (df in list(hi, lo, mix)) {
+    a <- funique(df); b <- unique(df)
+    rownames(a) <- rownames(b) <- NULL
+    expect_identical(a, b, info = "funique-0107.presize-roundtrip")
+    expect_identical(uniqLen(df), nrow(b), info = "uniqLen-0107.presize")
+    expect_identical(fduplicated(df), duplicated(df),
+                     info = "fduplicated-0107.presize")
+  }
+  m <- as.matrix(hi)
+  expect_identical(uniqLen(m), nrow(unique(m)), info = "uniqLen-0107.presize-mat")
+  a <- funique(m); b <- unique(m)
+  dimnames(a) <- dimnames(b) <- NULL
+  expect_identical(a, b, info = "funique-0107.presize-mat")
+})

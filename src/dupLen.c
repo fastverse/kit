@@ -79,6 +79,7 @@ SEXP dupLenDataFrameR(SEXP x) {
     Mbase *= 2;
     Kbase++;
   }
+  kit_rows_presize(mlv, len_i, len_x, &M, &K, Mbase, Kbase);
   R_xlen_t count = 0;
   int *restrict h = (int*) R_Calloc(M, int);
   const int *restrict v = INTEGER(mlv);
@@ -86,11 +87,7 @@ SEXP dupLenDataFrameR(SEXP x) {
   kit_row_ctx rowctx = {v, len_i, len_x};
   size_t id = 0;
   for (R_xlen_t i = 0; i < len_i; ++i) {
-    R_xlen_t key = 0;
-    for (R_xlen_t j = 0; j < len_x; ++j) {
-      key ^= HASH(v[i+j*len_i],K)*97*(j+1);
-    }
-    id = HASH(key, K);
+    id = kit_hash_rows_int_raw(v, i, len_i, len_x, K);
     while (h[id]) {
       for (R_xlen_t j = 0; j < len_x; ++j) {
         if (v[h[id]-1+j*len_i] != v[i+j*len_i]) {
@@ -127,6 +124,7 @@ SEXP dupLenMatrixR(SEXP x) {
     Mbase *= 2;
     Kbase++;
   }
+  kit_rows_presize(x, len_i, len_x, &M, &K, Mbase, Kbase);
   R_xlen_t count = 0;
   int *restrict h = (int*) R_Calloc(M, int);
   size_t id = 0;
@@ -138,11 +136,7 @@ SEXP dupLenMatrixR(SEXP x) {
     rowctx.px = px;
     grow = kit_grow_rows_lgl;
     for (R_xlen_t i = 0; i < len_i; ++i) {
-      id = 0;
-      for (R_xlen_t j = 0; j < len_x; ++j) {
-        id ^= ((unsigned)(j+1) * ((px[i+j*len_i] == NA_LOGICAL) ? 2U : (size_t) px[i+j*len_i]))*97*(j+1);
-      }
-      id = HASH(id, K);
+      id = kit_hash_rows_lgl(px, i, len_i, len_x, K);
       while (h[id]) {
         for (R_xlen_t j = 0; j < len_x; ++j) {
           if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -164,11 +158,7 @@ SEXP dupLenMatrixR(SEXP x) {
     rowctx.px = px;
     grow = kit_grow_rows_int;
     for (R_xlen_t i = 0; i < len_i; ++i) {
-      R_xlen_t key = 0;
-      for (R_xlen_t j = 0; j < len_x; ++j) {
-        key ^= HASH(((px[i+j*len_i] == NA_INTEGER) ? 0 : px[i+j*len_i]),K)*97*(j+1);
-      }
-      id = HASH(key, K);
+      id = kit_hash_rows_int(px, i, len_i, len_x, K);
       while (h[id]) {
         for (R_xlen_t j = 0; j < len_x; ++j) {
           if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -189,15 +179,8 @@ SEXP dupLenMatrixR(SEXP x) {
     const double *restrict px = REAL(x);
     rowctx.px = px;
     grow = kit_grow_rows_real;
-    union uno tpv;
     for (R_xlen_t i = 0; i < len_i; ++i) {
-      R_xlen_t key = 0;
-      for (R_xlen_t j = 0; j < len_x; ++j) {
-        tpv.d = px[i+j*len_i];
-        key ^= HASH(tpv.u[0] + tpv.u[1],K)*97*(j+1);
-      }
-      tpv.d = key;
-      id = HASH(tpv.u[0] + tpv.u[1], K);
+      id = kit_hash_rows_real(px, i, len_i, len_x, K);
       while (h[id]) {
         for (R_xlen_t j = 0; j < len_x; ++j) {
           if (!REQUAL(px[h[id]-1+j*len_i], px[i+j*len_i])) {
@@ -218,26 +201,8 @@ SEXP dupLenMatrixR(SEXP x) {
     const Rcomplex *restrict px = COMPLEX(x);
     rowctx.px = px;
     grow = kit_grow_rows_cplx;
-    unsigned int u;
-    union uno tpv;
-    Rcomplex tmp;
     for (R_xlen_t i = 0; i < len_i; ++i) {
-      R_xlen_t key = 0;
-      for (R_xlen_t j = 0; j < len_x; ++j) {
-        tmp.r = (px[i+j*len_i].r == 0.0) ? 0.0 : px[i+j*len_i].r;
-        tmp.i = (px[i+j*len_i].i == 0.0) ? 0.0 : px[i+j*len_i].i;
-        if (C_IsNA(tmp)) {
-          tmp.r = tmp.i = NA_REAL;
-        } else if (C_IsNaN(tmp)) {
-          tmp.r = tmp.i = R_NaN;
-        }
-        tpv.d = tmp.r;
-        u = tpv.u[0] ^ tpv.u[1];
-        tpv.d = tmp.i;
-        u ^= tpv.u[0] ^ tpv.u[1];
-        key ^= HASH(u, K)*97*(j+1);
-      }
-      id = HASH(key, K);
+      id = kit_hash_rows_cplx(px, i, len_i, len_x, K);
       while (h[id]) {
         for (R_xlen_t j = 0; j < len_x; ++j) {
           if (!CEQUAL(px[h[id]-1+j*len_i], px[i+j*len_i])) {
@@ -259,11 +224,7 @@ SEXP dupLenMatrixR(SEXP x) {
     rowctx.px = px;
     grow = kit_grow_rows_str;
     for (R_xlen_t i = 0; i < len_i; ++i) {
-      R_xlen_t key = 0;
-      for (R_xlen_t j = 0; j < len_x; ++j) {
-        key ^= HASH(((intptr_t) px[i+j*len_i] & 0xffffffff),K)*97*(j+1);
-      }
-      id = HASH(key, K);
+      id = kit_hash_rows_str(px, i, len_i, len_x, K);
       while (h[id]) {
         for (R_xlen_t j = 0; j < len_x; ++j) {
           if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
