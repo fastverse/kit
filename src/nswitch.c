@@ -133,7 +133,7 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
   }
   SEXP ans = PROTECT(allocVector(type0, len_x));
   copyMostAttrib(PTR_ETL(args, 1), ans);
-  if (n > 8 && len_x <= INT_MAX && type_x != VECSXP) {
+  if (n > 8 && len_x <= INT_MAX && IS_SWITCH_HASH_TYPE(type_x)) {
     SEXP values = PROTECT(allocVector(type_x, n));
     SEXP outputs = PROTECT(allocVector(VECSXP, n));
     switch (type_x) {
