@@ -563,7 +563,7 @@ SEXP countOccurR(SEXP x) { // can be improved for factors
     size_t id = 0;
     union uno tpv;
     for (int i = 0; i < n; ++i) {
-      tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+      tpv.u64 = kit_real_bits(px[i]);
       id = HASH(tpv.u[0] + tpv.u[1], K);
       while (h[id]) {
         if (REQUAL(px[h[id] - 1], px[i])) {
@@ -708,11 +708,7 @@ SEXP countOccurDataFrameR(SEXP x) { // move to matrix if possible (change hash a
   const int *restrict v = INTEGER(mlv);
   size_t id = 0;
   for (R_xlen_t i = 0; i < len_i; ++i) {
-    R_xlen_t key = 0;
-    for (R_xlen_t j = 0; j < len_x; ++j) {
-      key ^= HASH(v[i+j*len_i],K)*97*(j+1);
-    }
-    id = HASH(key, K);
+    id = kit_hash_rows_int_raw(v, i, len_i, len_x, K);
     while (h[id]) {
       for (R_xlen_t j = 0; j < len_x; ++j) {
         if (v[h[id]-1+j*len_i] != v[i+j*len_i]) {
@@ -828,13 +824,19 @@ SEXP enc2UTF8(SEXP x) {
   const R_xlen_t len = xlength(x);
   if (len == 0) return x; // avoid px[0] OOB on empty input
   const SEXP *px = STRING_PTR_RO(x);
-  if (getCharCE(px[0]) != CE_UTF8) {
-    SEXP ans = PROTECT(allocVector(STRSXP, len));
-    for (R_xlen_t i = 0; i < len; ++i) {
-      SET_STRING_ELT(ans, i, mkCharCE(translateCharUTF8(px[i]), CE_UTF8));
+  bool all_utf8 = true;
+  for (R_xlen_t i = 0; i < len; ++i) {
+    if (px[i] != NA_STRING && getCharCE(px[i]) != CE_UTF8) {
+      all_utf8 = false;
+      break;
     }
-    UNPROTECT(1);
-    return ans;
   }
-  return x;
+  if (all_utf8) return x;
+  SEXP ans = PROTECT(allocVector(STRSXP, len));
+  for (R_xlen_t i = 0; i < len; ++i) {
+    SET_STRING_ELT(ans, i, px[i] == NA_STRING ? NA_STRING :
+                   mkCharCE(translateCharUTF8(px[i]), CE_UTF8));
+  }
+  UNPROTECT(1);
+  return ans;
 }

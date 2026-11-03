@@ -48,6 +48,9 @@
 #define UTYPEOF(x) ((unsigned)TYPEOF(x))
 #define IS_BOOL(x) (XLENGTH(x)==1 && TYPEOF(x)==LGLSXP && LOGICAL(x)[0]!=NA_LOGICAL)
 #define IS_VALID_TYPE(x) ((x) == LGLSXP || (x)==INTSXP || (x)==REALSXP || (x)==CPLXSXP || (x)==STRSXP || (x)==VECSXP)
+#define IS_SWITCH_HASH_TYPE(x) ((x) == LGLSXP || (x)==INTSXP || (x)==REALSXP || (x)==CPLXSXP || (x)==STRSXP)
+/* Keep the per-pair map memory bounded; absurd pair counts stay value-major. */
+#define KIT_SWITCH_HASH_MAX_PAIRS 1048576
 #define PTR_ETL(x, y) (((const SEXP *)DATAPTR_RO(x))[y])
 #define SEXPPTR_RO(x) ((const SEXP *)DATAPTR_RO(x))
 #define ISNA_COMPLEX(x) (ISNA(x.r) || ISNA(x.i))
@@ -62,6 +65,14 @@ static inline size_t kit_hash_key(uint32_t key, int K) {
   key *= 0x9E3779B1U;
   return (size_t)(key >> (32 - K));
 }
+static inline size_t kit_hash_u64(uint64_t key, int K) {
+  // finaliser for the 64-bit rolling row hashes
+  key ^= key >> 33;
+  key *= 0xff51afd7ed558ccdULL;
+  key ^= key >> 29;
+  return (size_t)(key >> (64 - K));
+}
+#define KIT_MIX64 0x9E3779B97F4A7C15ULL
 #define HASH(key, K)  kit_hash_key((uint32_t)(key), (K))
 #define N_ISNAN(x, y) (!ISNAN(x) && !ISNAN(y))
 #define B_IsNA(x, y)  (R_IsNA(x) && R_IsNA(y))
@@ -73,7 +84,19 @@ static inline size_t kit_hash_key(uint32_t key, int K) {
 #define REQUAL(x, y)  (N_ISNAN(x, y) ? (x == y) : (B_IsNA(x, y) || B_IsNaN(x, y)))
 #define CEQUAL(x, y) ((N_ISNAN(x.r, x.i) && N_ISNAN(y.r, y.i)) ? (x.r == y.r && x.i == y.i) : (C_IsNA(x) ? C_IsNA(y) : (C_IsNA(y) ? 0 : (C_ISNAN(x.r, y.r) && C_ISNAN(x.i, y.i)))))
 
-union uno { double d; unsigned int u[2]; };
+union uno { double d; unsigned int u[2]; uint64_t u64; };
+
+/* Canonical bits for hashing a double the way REQUAL/CEQUAL compare it. */
+static inline uint64_t kit_real_bits(double x) {
+  union uno v;
+  v.d = x;
+  if (ISNAN(x)) {
+    v.d = R_IsNA(x) ? NA_REAL : R_NaN;
+  } else if (x == 0.0) {
+    v.u64 = 0; // -0 == 0
+  }
+  return v.u64;
+}
 
 /*
  * Growable duplicate tables. Each table stores 1-based input indices in an
@@ -92,51 +115,49 @@ typedef int *(*kit_row_grow_fn)(const kit_row_ctx *ctx, int *h, size_t M, size_t
 static inline size_t kit_hash_rows_lgl(const int *px, const R_xlen_t i,
                                        const R_xlen_t len_i, const R_xlen_t len_x,
                                        const int K) {
-  size_t id = 0;
+  uint64_t key = 0;
   for (R_xlen_t j = 0; j < len_x; ++j) {
-    id ^= ((unsigned)(j+1) * ((px[i+j*len_i] == NA_LOGICAL) ? 2U : (size_t) px[i+j*len_i]))*97*(j+1);
+    key = key * KIT_MIX64 +
+          (uint64_t)((px[i+j*len_i] == NA_LOGICAL) ? 2U : (unsigned) px[i+j*len_i]);
   }
-  return HASH(id, K);
+  return kit_hash_u64(key, K);
 }
 
 static inline size_t kit_hash_rows_int(const int *px, const R_xlen_t i,
                                        const R_xlen_t len_i, const R_xlen_t len_x,
                                        const int K) {
-  R_xlen_t key = 0;
+  uint64_t key = 0;
   for (R_xlen_t j = 0; j < len_x; ++j) {
-    key ^= HASH(((px[i+j*len_i] == NA_INTEGER) ? 0 : px[i+j*len_i]), K)*97*(j+1);
+    key = key * KIT_MIX64 +
+          (uint64_t)(uint32_t)((px[i+j*len_i] == NA_INTEGER) ? 0 : px[i+j*len_i]);
   }
-  return HASH(key, K);
+  return kit_hash_u64(key, K);
 }
 
 static inline size_t kit_hash_rows_int_raw(const int *px, const R_xlen_t i,
                                            const R_xlen_t len_i, const R_xlen_t len_x,
                                            const int K) {
-  R_xlen_t key = 0;
+  uint64_t key = 0;
   for (R_xlen_t j = 0; j < len_x; ++j) {
-    key ^= HASH(px[i+j*len_i], K)*97*(j+1);
+    key = key * KIT_MIX64 + (uint64_t)(uint32_t) px[i+j*len_i];
   }
-  return HASH(key, K);
+  return kit_hash_u64(key, K);
 }
 
 static inline size_t kit_hash_rows_real(const double *px, const R_xlen_t i,
                                         const R_xlen_t len_i, const R_xlen_t len_x,
                                         const int K) {
-  R_xlen_t key = 0;
-  union uno tpv;
+  uint64_t key = 0;
   for (R_xlen_t j = 0; j < len_x; ++j) {
-    tpv.d = px[i+j*len_i];
-    key ^= HASH(tpv.u[0] + tpv.u[1], K)*97*(j+1);
+    key = key * KIT_MIX64 + kit_real_bits(px[i+j*len_i]);
   }
-  tpv.d = key;
-  return HASH(tpv.u[0] + tpv.u[1], K);
+  return kit_hash_u64(key, K);
 }
 
 static inline size_t kit_hash_rows_cplx(const Rcomplex *px, const R_xlen_t i,
                                         const R_xlen_t len_i, const R_xlen_t len_x,
                                         const int K) {
-  R_xlen_t key = 0;
-  unsigned int u;
+  uint64_t key = 0;
   union uno tpv;
   Rcomplex tmp;
   for (R_xlen_t j = 0; j < len_x; ++j) {
@@ -148,22 +169,21 @@ static inline size_t kit_hash_rows_cplx(const Rcomplex *px, const R_xlen_t i,
       tmp.r = tmp.i = R_NaN;
     }
     tpv.d = tmp.r;
-    u = tpv.u[0] ^ tpv.u[1];
+    key = key * KIT_MIX64 + tpv.u64;
     tpv.d = tmp.i;
-    u ^= tpv.u[0] ^ tpv.u[1];
-    key ^= HASH(u, K)*97*(j+1);
+    key = key * KIT_MIX64 + tpv.u64;
   }
-  return HASH(key, K);
+  return kit_hash_u64(key, K);
 }
 
 static inline size_t kit_hash_rows_str(const SEXP *px, const R_xlen_t i,
                                        const R_xlen_t len_i, const R_xlen_t len_x,
                                        const int K) {
-  R_xlen_t key = 0;
+  uint64_t key = 0;
   for (R_xlen_t j = 0; j < len_x; ++j) {
-    key ^= HASH(((intptr_t) px[i+j*len_i] & 0xffffffff), K)*97*(j+1);
+    key = key * KIT_MIX64 + (uint64_t)(uintptr_t) px[i+j*len_i];
   }
-  return HASH(key, K);
+  return kit_hash_u64(key, K);
 }
 
 #define KIT_DEFINE_ROW_GROW(name, type, hashfn) \
@@ -191,6 +211,75 @@ KIT_DEFINE_ROW_GROW(int_raw, int, kit_hash_rows_int_raw)
 KIT_DEFINE_ROW_GROW(real, double, kit_hash_rows_real)
 KIT_DEFINE_ROW_GROW(cplx, Rcomplex, kit_hash_rows_cplx)
 KIT_DEFINE_ROW_GROW(str, SEXP, kit_hash_rows_str)
+
+/*
+ * Estimate whether an input is high-cardinality from a bounded row sample.
+ * High-cardinality inputs pre-size the duplicate table to its final capacity,
+ * avoiding several full rehashes while low-cardinality inputs keep the small
+ * grow-on-demand table (#74).
+ */
+#define KIT_DEFINE_ROW_SAMPLE(name, type, hashfn) \
+static inline bool kit_likely_high_card_##name(const type *px, \
+                                               const R_xlen_t len_i, \
+                                               const R_xlen_t len_x) { \
+  if (len_i < 262144) return false; /* growth is cheap below this size */ \
+  R_xlen_t sample = len_x > 16 ? 65536 / len_x : 65536; \
+  if (sample < 4096) sample = 4096; \
+  if (sample > len_i) sample = len_i; \
+  size_t cap = 256; \
+  while (cap < (size_t) sample * 2) cap <<= 1; \
+  uint32_t *keys = (uint32_t*) R_Calloc(cap, uint32_t); \
+  size_t distinct = 0; \
+  uint64_t state = 0x9E3779B97F4A7C15ULL ^ (uint64_t) len_i; \
+  for (R_xlen_t s = 0; s < sample; ++s) { \
+    state = state * 6364136223846793005ULL + 1442695040888963407ULL; \
+    const R_xlen_t i = (R_xlen_t)(state % (uint64_t) len_i); \
+    uint32_t key = (uint32_t) hashfn(px, i, len_i, len_x, 32); \
+    if (!key) key = 1; \
+    size_t id = (size_t) key & (cap - 1); \
+    while (keys[id] && keys[id] != key) id = (id + 1) & (cap - 1); \
+    if (!keys[id]) { keys[id] = key; distinct++; } \
+  } \
+  R_Free(keys); \
+  if (distinct < 64) return false; \
+  const size_t dup = (size_t) sample - distinct; \
+  if (!dup) return true; /* no repeat in a random sample means U >> n/2 */ \
+  const double uhat = (double) sample * (double) (sample - 1) / \
+                      (2.0 * (double) dup); \
+  return uhat > (double) len_i * 0.5; \
+}
+
+KIT_DEFINE_ROW_SAMPLE(lgl, int, kit_hash_rows_lgl)
+KIT_DEFINE_ROW_SAMPLE(int, int, kit_hash_rows_int)
+KIT_DEFINE_ROW_SAMPLE(real, double, kit_hash_rows_real)
+KIT_DEFINE_ROW_SAMPLE(cplx, Rcomplex, kit_hash_rows_cplx)
+KIT_DEFINE_ROW_SAMPLE(str, SEXP, kit_hash_rows_str)
+
+static inline void kit_rows_presize(SEXP x, const R_xlen_t len_i,
+                                    const R_xlen_t len_x, size_t *M, int *K,
+                                    const size_t Mbase, const int Kbase) {
+  bool high = false;
+  switch (UTYPEOF(x)) {
+  case LGLSXP:
+    high = kit_likely_high_card_lgl(LOGICAL(x), len_i, len_x);
+    break;
+  case INTSXP:
+    high = kit_likely_high_card_int(INTEGER(x), len_i, len_x);
+    break;
+  case REALSXP:
+    high = kit_likely_high_card_real(REAL(x), len_i, len_x);
+    break;
+  case CPLXSXP:
+    high = kit_likely_high_card_cplx(COMPLEX(x), len_i, len_x);
+    break;
+  case STRSXP:
+    high = kit_likely_high_card_str(STRING_PTR_RO(x), len_i, len_x);
+    break;
+  default:
+    return;
+  }
+  if (high) { *M = Mbase; *K = Kbase; }
+}
 
 #define KIT_GROW_ROWS() do { if ((size_t) count > M - (M >> 2)) { \
   size_t Mnew = M << 2; int Knew = K + 2; \
@@ -223,7 +312,7 @@ static inline int *kit_rehash_real(const double *restrict px, int *restrict h,
     const int e = h[s];
     if (e) {
       const int i = e - 1;
-      tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN : px[i]);
+      tpv.u64 = kit_real_bits(px[i]);
       size_t id = HASH(tpv.u[0] + tpv.u[1], K2);
       while (h2[id]) { id++; id %= M2; }
       h2[id] = e;
@@ -355,3 +444,7 @@ extern SEXP clearMappingObjectR(SEXP ext, SEXP verboseArg);
 
 bool isMixEnc(SEXP x);
 SEXP enc2UTF8(SEXP x);
+void kit_switch_hash(SEXP ans, SEXP x, SEXP values, SEXP outputs, SEXP na,
+                     SEXPTYPE type_x, SEXPTYPE type_o, R_xlen_t len_x,
+                     R_xlen_t len_values, R_xlen_t len_na, int nth, bool nonna,
+                     bool utfcon, SEXP xans, SEXP vans);

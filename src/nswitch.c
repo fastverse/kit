@@ -133,6 +133,42 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
   }
   SEXP ans = PROTECT(allocVector(type0, len_x));
   copyMostAttrib(PTR_ETL(args, 1), ans);
+  if (n > 8 && n <= KIT_SWITCH_HASH_MAX_PAIRS && len_x <= INT_MAX && IS_SWITCH_HASH_TYPE(type_x) && IS_VALID_TYPE(type0)) {
+    SEXP values = PROTECT(allocVector(type_x, n));
+    SEXP outputs = PROTECT(allocVector(VECSXP, n));
+    switch (type_x) {
+    case LGLSXP: {
+      int *restrict pv = LOGICAL(values);
+      for (int i = 0; i < n; ++i) pv[i] = LOGICAL(PTR_ETL(args, 2*i))[0];
+    } break;
+    case INTSXP: {
+      int *restrict pv = INTEGER(values);
+      for (int i = 0; i < n; ++i) pv[i] = INTEGER(PTR_ETL(args, 2*i))[0];
+    } break;
+    case REALSXP: {
+      double *restrict pv = REAL(values);
+      for (int i = 0; i < n; ++i) pv[i] = REAL(PTR_ETL(args, 2*i))[0];
+    } break;
+    case CPLXSXP: {
+      Rcomplex *restrict pv = COMPLEX(values);
+      for (int i = 0; i < n; ++i) pv[i] = COMPLEX(PTR_ETL(args, 2*i))[0];
+    } break;
+    case STRSXP: {
+      for (int i = 0; i < n; ++i) {
+        SET_STRING_ELT(values, i,
+                       STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i))[0]);
+      }
+    } break;
+    }
+    for (int i = 0; i < n; ++i) {
+      SET_VECTOR_ELT(outputs, i, PTR_ETL(args, 2*i+1));
+    }
+    kit_switch_hash(ans, x, values, outputs, na, type_x, VECSXP, len_x, n,
+                    len_na, nth, nonna, utfcon, xans, vans);
+    UNPROTECT(2);
+    UNPROTECT(nprotect + 3);
+    return ans;
+  }
   switch(type0) {
   /*
    *  This part is for LOGICAL
@@ -202,7 +238,7 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
       const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = LOGICAL(PTR_ETL(args, 2*i+1));
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i));
+        const SEXP *restrict pvalues = utfcon ? STRING_PTR_RO(vans) + i : STRING_PTR_RO(PTR_ETL(args, 2*i));
         OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
@@ -295,7 +331,7 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
       const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
       for (ssize_t i = 0; i < n; ++i) {
         const int *restrict pto = INTEGER(PTR_ETL(args, 2*i+1));
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i));
+        const SEXP *restrict pvalues = utfcon ? STRING_PTR_RO(vans) + i : STRING_PTR_RO(PTR_ETL(args, 2*i));
         OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
@@ -388,7 +424,7 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
       const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
       for (ssize_t i = 0; i < n; ++i) {
         const double *restrict pto = REAL(PTR_ETL(args, 2*i+1));
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i));
+        const SEXP *restrict pvalues = utfcon ? STRING_PTR_RO(vans) + i : STRING_PTR_RO(PTR_ETL(args, 2*i));
         OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
@@ -482,7 +518,7 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
       const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
       for (ssize_t i = 0; i < n; ++i) {
         const Rcomplex *restrict pto = COMPLEX(PTR_ETL(args, 2*i+1));
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i));
+        const SEXP *restrict pvalues = utfcon ? STRING_PTR_RO(vans) + i : STRING_PTR_RO(PTR_ETL(args, 2*i));
         OMP_PARALLEL_FOR(nth)
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
@@ -569,7 +605,7 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
       const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
       for (ssize_t i = 0; i < n; ++i) {
         const SEXP *restrict pto = STRING_PTR_RO(PTR_ETL(args, 2*i+1));
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i));
+        const SEXP *restrict pvalues = utfcon ? STRING_PTR_RO(vans) + i : STRING_PTR_RO(PTR_ETL(args, 2*i));
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             SET_STRING_ELT(ans, j, pto[j & amask[i]]);
@@ -657,7 +693,7 @@ SEXP nswitchR(SEXP x, SEXP na, SEXP nthreads, SEXP chkenc, SEXP args) {
       const SEXP *restrict px = STRING_PTR_RO(utfcon ? xans : x);
       for (ssize_t i = 0; i < n; ++i) {
         const SEXP *restrict pto = SEXPPTR_RO(PTR_ETL(args, 2*i+1));
-        const SEXP *restrict pvalues = STRING_PTR_RO(utfcon ? vans : PTR_ETL(args, 2*i));
+        const SEXP *restrict pvalues = utfcon ? STRING_PTR_RO(vans) + i : STRING_PTR_RO(PTR_ETL(args, 2*i));
         for (ssize_t j = 0; j < len_x; ++j) {
           if (px[j] == pvalues[0]) {
             SET_VECTOR_ELT(ans, j, pto[j & amask[i]]);

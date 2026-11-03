@@ -85,6 +85,7 @@ SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast) { // move to matrix if poss
     Mbase *= 2;
     Kbase++;
   }
+  kit_rows_presize(mlv, len_i, len_x, &M, &K, Mbase, Kbase);
   R_xlen_t count = 0;
   int *restrict h = (int*) R_Calloc(M, int);
   const int *restrict v = INTEGER(mlv);
@@ -95,11 +96,7 @@ SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast) { // move to matrix if poss
   if (buniq) {
     if (pfromLast) {
       for (R_xlen_t i = len_i-1; i > -1; --i) {
-        R_xlen_t key = 0;
-        for (R_xlen_t j = 0; j < len_x; ++j) {
-          key ^= HASH(v[i+j*len_i],K)*97*(j+1);
-        }
-        id = HASH(key, K);
+        id = kit_hash_rows_int_raw(v, i, len_i, len_x, K);
         while (h[id]) {
           for (R_xlen_t j = 0; j < len_x; ++j) {
             if (v[h[id]-1+j*len_i] != v[i+j*len_i]) {
@@ -118,11 +115,7 @@ SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast) { // move to matrix if poss
       }
     } else {
       for (R_xlen_t i = 0; i < len_i; ++i) {
-        R_xlen_t key = 0;
-        for (R_xlen_t j = 0; j < len_x; ++j) {
-          key ^= HASH(v[i+j*len_i],K)*97*(j+1);
-        }
-        id = HASH(key, K);
+        id = kit_hash_rows_int_raw(v, i, len_i, len_x, K);
         while (h[id]) {
           for (R_xlen_t j = 0; j < len_x; ++j) {
             if (v[h[id]-1+j*len_i] != v[i+j*len_i]) {
@@ -157,11 +150,7 @@ SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast) { // move to matrix if poss
   }
   if (pfromLast) {
     for (R_xlen_t i = len_i-1; i > -1; --i) {
-      R_xlen_t key = 0;
-      for (R_xlen_t j = 0; j < len_x; ++j) {
-        key ^= HASH(v[i+j*len_i],K)*97*(j+1);
-      }
-      id = HASH(key, K);
+      id = kit_hash_rows_int_raw(v, i, len_i, len_x, K);
       while (h[id]) {
         for (R_xlen_t j = 0; j < len_x; ++j) {
           if (v[h[id]-1+j*len_i] != v[i+j*len_i]) {
@@ -181,11 +170,7 @@ SEXP dupDataFrameR(SEXP x, SEXP uniq, SEXP fromLast) { // move to matrix if poss
     }
   } else {
     for (R_xlen_t i = 0; i < len_i; ++i) {
-      R_xlen_t key = 0;
-      for (R_xlen_t j = 0; j < len_x; ++j) {
-        key ^= HASH(v[i+j*len_i],K)*97*(j+1);
-      }
-      id = HASH(key, K);
+      id = kit_hash_rows_int_raw(v, i, len_i, len_x, K);
       while (h[id]) {
         for (R_xlen_t j = 0; j < len_x; ++j) {
           if (v[h[id]-1+j*len_i] != v[i+j*len_i]) {
@@ -231,6 +216,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
     Mbase *= 2;
     Kbase++;
   }
+  kit_rows_presize(x, len_i, len_x, &M, &K, Mbase, Kbase);
   R_xlen_t count = 0;
   int *restrict h = (int*) R_Calloc(M, int);
   int *restrict pans = buniq ? (int*) R_Calloc(len_i, int) : LOGICAL(ans);
@@ -245,11 +231,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
     if (buniq) {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
-          id = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            id ^= ((unsigned)(j+1) * ((px[i+j*len_i] == NA_LOGICAL) ? 2U : (size_t) px[i+j*len_i]))*97*(j+1);
-          }
-          id = HASH(id, K);
+          id = kit_hash_rows_lgl(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -268,11 +250,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
         }
       } else {
         for (R_xlen_t i = 0; i < len_i; ++i) {
-          id = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            id ^= ((unsigned)(j+1) * ((px[i+j*len_i] == NA_LOGICAL) ? 2U : (size_t) px[i+j*len_i]))*97*(j+1);
-          }
-          id = HASH(id, K);
+          id = kit_hash_rows_lgl(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -293,11 +271,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
     } else {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i >-1; --i) {
-          id = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            id ^= ((unsigned)(j+1) * ((px[i+j*len_i] == NA_LOGICAL) ? 2U : (size_t) px[i+j*len_i]))*97*(j+1);
-          }
-          id = HASH(id, K);
+          id = kit_hash_rows_lgl(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -317,11 +291,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
         }
       } else {
         for (R_xlen_t i = 0; i < len_i; ++i) {
-          id = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            id ^= ((unsigned)(j+1) * ((px[i+j*len_i] == NA_LOGICAL) ? 2U : (size_t) px[i+j*len_i]))*97*(j+1);
-          }
-          id = HASH(id, K);
+          id = kit_hash_rows_lgl(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -349,11 +319,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
     if (buniq) {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            key ^= HASH(((px[i+j*len_i] == NA_INTEGER) ? 0 : px[i+j*len_i]),K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_int(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -372,11 +338,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
         }
       } else {
         for (R_xlen_t i = 0; i < len_i; ++i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            key ^= HASH(((px[i+j*len_i] == NA_INTEGER) ? 0 : px[i+j*len_i]),K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_int(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -397,11 +359,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
     } else {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            key ^= HASH(((px[i+j*len_i] == NA_INTEGER) ? 0 : px[i+j*len_i]),K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_int(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -421,11 +379,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
         }
       } else {
         for (R_xlen_t i = 0; i < len_i; ++i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            key ^= HASH(((px[i+j*len_i] == NA_INTEGER) ? 0 : px[i+j*len_i]),K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_int(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -450,17 +404,10 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
     const double *restrict px = REAL(x);
     rowctx.px = px;
     grow = kit_grow_rows_real;
-    union uno tpv;
     if (buniq) {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            tpv.d = px[i+j*len_i];
-            key ^= HASH(tpv.u[0] + tpv.u[1],K)*97*(j+1);
-          }
-          tpv.d = key;
-          id = HASH(tpv.u[0] + tpv.u[1], K);
+          id = kit_hash_rows_real(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (!REQUAL(px[h[id]-1+j*len_i], px[i+j*len_i])) {
@@ -479,13 +426,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
         }
       } else {
         for (R_xlen_t i = 0; i < len_i; ++i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            tpv.d = px[i+j*len_i];
-            key ^= HASH(tpv.u[0] + tpv.u[1],K)*97*(j+1);
-          }
-          tpv.d = key;
-          id = HASH(tpv.u[0] + tpv.u[1], K);
+          id = kit_hash_rows_real(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (!REQUAL(px[h[id]-1+j*len_i], px[i+j*len_i])) {
@@ -506,13 +447,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
     } else {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            tpv.d = px[i+j*len_i];
-            key ^= HASH(tpv.u[0] + tpv.u[1],K)*97*(j+1);
-          }
-          tpv.d = key;
-          id = HASH(tpv.u[0] + tpv.u[1], K);
+          id = kit_hash_rows_real(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (!REQUAL(px[h[id]-1+j*len_i], px[i+j*len_i])) {
@@ -532,13 +467,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
         }
       } else {
         for (R_xlen_t i = 0; i < len_i; ++i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            tpv.d = px[i+j*len_i];
-            key ^= HASH(tpv.u[0] + tpv.u[1],K)*97*(j+1);
-          }
-          tpv.d = key;
-          id = HASH(tpv.u[0] + tpv.u[1], K);
+          id = kit_hash_rows_real(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (!REQUAL(px[h[id]-1+j*len_i], px[i+j*len_i])) {
@@ -563,28 +492,10 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
     const Rcomplex *restrict px = COMPLEX(x);
     rowctx.px = px;
     grow = kit_grow_rows_cplx;
-    unsigned int u;
-    union uno tpv;
-    Rcomplex tmp;
     if (buniq) {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            tmp.r = (px[i+j*len_i].r == 0.0) ? 0.0 : px[i+j*len_i].r;
-            tmp.i = (px[i+j*len_i].i == 0.0) ? 0.0 : px[i+j*len_i].i;
-            if (C_IsNA(tmp)) {
-              tmp.r = tmp.i = NA_REAL;
-            } else if (C_IsNaN(tmp)) {
-              tmp.r = tmp.i = R_NaN;
-            }
-            tpv.d = tmp.r;
-            u = tpv.u[0] ^ tpv.u[1];
-            tpv.d = tmp.i;
-            u ^= tpv.u[0] ^ tpv.u[1];
-            key ^= HASH(u, K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_cplx(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (!CEQUAL(px[h[id]-1+j*len_i], px[i+j*len_i])) {
@@ -603,22 +514,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
         }
       } else {
         for (R_xlen_t i = 0; i < len_i; ++i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            tmp.r = (px[i+j*len_i].r == 0.0) ? 0.0 : px[i+j*len_i].r;
-            tmp.i = (px[i+j*len_i].i == 0.0) ? 0.0 : px[i+j*len_i].i;
-            if (C_IsNA(tmp)) {
-              tmp.r = tmp.i = NA_REAL;
-            } else if (C_IsNaN(tmp)) {
-              tmp.r = tmp.i = R_NaN;
-            }
-            tpv.d = tmp.r;
-            u = tpv.u[0] ^ tpv.u[1];
-            tpv.d = tmp.i;
-            u ^= tpv.u[0] ^ tpv.u[1];
-            key ^= HASH(u, K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_cplx(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (!CEQUAL(px[h[id]-1+j*len_i], px[i+j*len_i])) {
@@ -639,22 +535,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
     } else {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            tmp.r = (px[i+j*len_i].r == 0.0) ? 0.0 : px[i+j*len_i].r;
-            tmp.i = (px[i+j*len_i].i == 0.0) ? 0.0 : px[i+j*len_i].i;
-            if (C_IsNA(tmp)) {
-              tmp.r = tmp.i = NA_REAL;
-            } else if (C_IsNaN(tmp)) {
-              tmp.r = tmp.i = R_NaN;
-            }
-            tpv.d = tmp.r;
-            u = tpv.u[0] ^ tpv.u[1];
-            tpv.d = tmp.i;
-            u ^= tpv.u[0] ^ tpv.u[1];
-            key ^= HASH(u, K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_cplx(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (!CEQUAL(px[h[id]-1+j*len_i], px[i+j*len_i])) {
@@ -674,22 +555,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
         }
       } else {
         for (R_xlen_t i = 0; i < len_i; ++i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            tmp.r = (px[i+j*len_i].r == 0.0) ? 0.0 : px[i+j*len_i].r;
-            tmp.i = (px[i+j*len_i].i == 0.0) ? 0.0 : px[i+j*len_i].i;
-            if (C_IsNA(tmp)) {
-              tmp.r = tmp.i = NA_REAL;
-            } else if (C_IsNaN(tmp)) {
-              tmp.r = tmp.i = R_NaN;
-            }
-            tpv.d = tmp.r;
-            u = tpv.u[0] ^ tpv.u[1];
-            tpv.d = tmp.i;
-            u ^= tpv.u[0] ^ tpv.u[1];
-            key ^= HASH(u, K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_cplx(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (!CEQUAL(px[h[id]-1+j*len_i], px[i+j*len_i])) {
@@ -717,11 +583,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
     if (buniq) {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            key ^= HASH(((intptr_t) px[i+j*len_i] & 0xffffffff),K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_str(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -740,11 +602,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
         }
       } else {
         for (R_xlen_t i = 0; i < len_i; ++i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            key ^= HASH(((intptr_t) px[i+j*len_i] & 0xffffffff),K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_str(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -765,11 +623,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
     } else {
       if (pfromLast) {
         for (R_xlen_t i = len_i-1; i > -1; --i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            key ^= HASH(((intptr_t) px[i+j*len_i] & 0xffffffff),K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_str(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -789,11 +643,7 @@ SEXP dupMatrixR(SEXP x, SEXP uniq, bool idx, SEXP fromLast) {
         }
       } else {
         for (R_xlen_t i = 0; i < len_i; ++i) {
-          R_xlen_t key = 0;
-          for (R_xlen_t j = 0; j < len_x; ++j) {
-            key ^= HASH(((intptr_t) px[i+j*len_i] & 0xffffffff),K)*97*(j+1);
-          }
-          id = HASH(key, K);
+          id = kit_hash_rows_str(px, i, len_i, len_x, K);
           while (h[id]) {
             for (R_xlen_t j = 0; j < len_x; ++j) {
               if (px[h[id]-1+j*len_i] != px[i+j*len_i]) {
@@ -1107,7 +957,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
     if (buniq) {
       if (pfromLast) {
         for (int i = n-1; i > -1; --i) {
-          tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+          tpv.u64 = kit_real_bits(px[i]);
           id = HASH(tpv.u[0] + tpv.u[1], K);
           while (h[id]) {
             if (REQUAL(px[h[id]-1], px[i])) {
@@ -1123,7 +973,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
         }
       } else {
         for (int i = 0; i < n; ++i) {
-          tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+          tpv.u64 = kit_real_bits(px[i]);
           id = HASH(tpv.u[0] + tpv.u[1], K);
           while (h[id]) {
             if (REQUAL(px[h[id]-1], px[i])) {
@@ -1154,7 +1004,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
     } else {
       if (pfromLast) {
         for (int i = n-1; i > -1; --i) {
-          tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+          tpv.u64 = kit_real_bits(px[i]);
           id = HASH(tpv.u[0] + tpv.u[1], K);
           while (h[id]) {
             if (REQUAL(px[h[id]-1], px[i])) {
@@ -1171,7 +1021,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
         }
       } else {
         for (int i = 0; i < n; ++i) {
-          tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+          tpv.u64 = kit_real_bits(px[i]);
           id = HASH(tpv.u[0] + tpv.u[1], K);
           while (h[id]) {
             if (REQUAL(px[h[id]-1], px[i])) {
@@ -1442,6 +1292,7 @@ SEXP dupVecIndexOnlyR(SEXP x) {
   } else {
     error("Type %s is not supported.", type2char(tx)); // # nocov
   }
+  kit_rows_presize(x, n, 1, &M, &K, Mbase, Kbase);
   size_t count = 0;
   int *restrict h = (int*)R_Calloc(M, int);
   SEXP ans_i = PROTECT(allocVector(INTSXP, n));
@@ -1488,7 +1339,7 @@ SEXP dupVecIndexOnlyR(SEXP x) {
     size_t id = 0;
     union uno tpv;
     for (int i = 0; i < n; ++i) {
-      tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+      tpv.u64 = kit_real_bits(px[i]);
       id = HASH(tpv.u[0] + tpv.u[1], K);
       while (h[id]) {
         if (REQUAL(px[h[id]-1], px[i])) {

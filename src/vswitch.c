@@ -182,6 +182,12 @@ SEXP vswitchR(SEXP x, SEXP values, SEXP outputs, SEXP na, SEXP nthreads, SEXP ch
     }
     ans = PROTECT(allocVector(type_outputs, len_x)); nprotect++;
     copyMostAttrib(po[0], ans);
+    if (len_values > 8 && len_values <= KIT_SWITCH_HASH_MAX_PAIRS && len_x <= INT_MAX && IS_SWITCH_HASH_TYPE(type_x) && IS_VALID_TYPE(type_outputs)) {
+      kit_switch_hash(ans, x, values, outputs, na, type_x, type_o, len_x,
+                      len_values, len_na, nth, nonna, utfcon, xans, vans);
+      UNPROTECT(nprotect);
+      return ans;
+    }
     switch(type_outputs) {
     /*
      *  This part is for LOGICAL
@@ -347,6 +353,12 @@ SEXP vswitchR(SEXP x, SEXP values, SEXP outputs, SEXP na, SEXP nthreads, SEXP ch
     }
     ans = PROTECT(allocVector(type_o, len_x)); nprotect++;
     copyMostAttrib(outputs, ans);
+    if (len_values > 8 && len_values <= KIT_SWITCH_HASH_MAX_PAIRS && len_x <= INT_MAX && IS_SWITCH_HASH_TYPE(type_x) && IS_SWITCH_HASH_TYPE(type_o)) {
+      kit_switch_hash(ans, x, values, outputs, na, type_x, type_o, len_x,
+                      len_values, len_na, nth, nonna, utfcon, xans, vans);
+      UNPROTECT(nprotect);
+      return ans;
+    }
     switch(type_o) {
     /*
      *  This part is for LOGICAL

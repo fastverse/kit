@@ -698,3 +698,56 @@ local({
   expect_identical(uniqLen(df), nrow(unique(df)), info = "uniqLen-0074.grow-df")
 })
 
+
+# issue #107: large high-cardinality inputs pre-size the row table while
+# low-cardinality inputs keep the grow-on-demand path. Both must match base R.
+local({
+  n <- 2000L
+  hi <- data.frame(a = seq_len(n), b = seq_len(n) * 31L)
+  lo <- data.frame(a = rep(1:5, length.out = n),
+                   b = rep(1:3, length.out = n))
+  mix <- data.frame(a = seq_len(n), b = as.numeric(seq_len(n)) / 3)
+  for (df in list(hi, lo, mix)) {
+    a <- funique(df); b <- unique(df)
+    rownames(a) <- rownames(b) <- NULL
+    expect_identical(a, b, info = "funique-0107.presize-roundtrip")
+    expect_identical(uniqLen(df), nrow(b), info = "uniqLen-0107.presize")
+    expect_identical(fduplicated(df), duplicated(df),
+                     info = "fduplicated-0107.presize")
+  }
+  m <- as.matrix(hi)
+  expect_identical(uniqLen(m), nrow(unique(m)), info = "uniqLen-0107.presize-mat")
+  a <- funique(m); b <- unique(m)
+  dimnames(a) <- dimnames(b) <- NULL
+  expect_identical(a, b, info = "funique-0107.presize-mat")
+})
+
+# issue #107: -0/0 and differing NaN payloads must hash equal because REQUAL
+# treats them equal. Vector, matrix and data-frame paths all share this rule.
+local({
+  mk_nan <- function(lo) {
+    bits <- as.raw(c(lo, 0, 0, 0, 0, 0, 0xf8, 0x7f))
+    if (.Platform$endian == "big") bits <- rev(bits)
+    readBin(bits, "double", n = 1L, size = 8L)
+  }
+  nans <- vapply(1:64, function(i) mk_nan(as.raw(i)), numeric(1))
+  for (x in list(c(0, -0), nans)) {
+    df <- data.frame(a = x)
+    m <- matrix(x, ncol = 1L)
+    expect_identical(funique(x), unique(x), info = "funique-0107.dbl-equal")
+    expect_identical(fduplicated(x), duplicated(x), info = "fduplicated-0107.dbl-equal")
+    expect_identical(uniqLen(x), 1L, info = "uniqLen-0107.dbl-equal")
+    expect_identical(nrow(funique(df)), nrow(unique(df)),
+                     info = "funique-0107.dbl-equal-df")
+    expect_identical(fduplicated(df), duplicated(df),
+                     info = "fduplicated-0107.dbl-equal-df")
+    expect_identical(uniqLen(df), 1L, info = "uniqLen-0107.dbl-equal-df")
+    expect_identical(nrow(funique(m)), nrow(unique(m)),
+                     info = "funique-0107.dbl-equal-mat")
+    expect_identical(fduplicated(m), as.vector(duplicated(m)),
+                     info = "fduplicated-0107.dbl-equal-mat")
+    expect_identical(uniqLen(m), 1L, info = "uniqLen-0107.dbl-equal-mat")
+  }
+  expect_identical(uniqLen(data.frame(a = c(0, -0), b = c("x", "x"))), 1L,
+                   info = "uniqLen-0107.dbl-equal-mixed-df")
+})
