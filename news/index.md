@@ -1,5 +1,54 @@
 # Changelog
 
+## kit 0.0.24 (development version)
+
+#### Bug Fixes
+
+- Fix
+  [`vswitch()`](https://fastverse.org/kit/reference/vswitch.md)/[`nswitch()`](https://fastverse.org/kit/reference/vswitch.md)
+  with `checkEnc = TRUE` when the first string is already UTF-8 but
+  later elements are latin1 or `NA`: `enc2UTF8()` now checks every
+  element and preserves `NA_STRING`, and value-major
+  [`nswitch()`](https://fastverse.org/kit/reference/vswitch.md) compares
+  each pair against its own converted value instead of the first one.
+
+- Fix
+  [`funique()`](https://fastverse.org/kit/reference/funique.md)/[`fduplicated()`](https://fastverse.org/kit/reference/funique.md)/[`uniqLen()`](https://fastverse.org/kit/reference/funique.md)
+  hashing `-0` and differing `NaN` payloads as distinct doubles. Vector,
+  matrix and data-frame paths now canonicalise doubles the same way
+  `REQUAL` compares them, matching base R.
+
+#### Notes
+
+- Speed up [`vswitch()`](https://fastverse.org/kit/reference/vswitch.md)
+  and [`nswitch()`](https://fastverse.org/kit/reference/vswitch.md) when
+  there are many value/output pairs. For more than 8 pairs the
+  implementation builds a value-to-last-pair hash map once and scans `x`
+  in cache-sized blocks instead of comparing `x` against every value.
+  Matching semantics are unchanged: integer/logical `NA` still matches
+  `NA`, doubles/complex canonicalise `-0` and never match `NA`/`NaN`,
+  strings compare `CHARSXP` identity, duplicate values keep the last
+  pair, and threaded results stay deterministic. On 2m elements, 20
+  values are about 2-2.5x faster and 100 values 4.5-5.7x faster; the
+  value-major path is kept for 8 or fewer pairs.
+
+- Speed up
+  [`funique()`](https://fastverse.org/kit/reference/funique.md)/[`fduplicated()`](https://fastverse.org/kit/reference/funique.md)/[`uniqLen()`](https://fastverse.org/kit/reference/funique.md)
+  on data frames and matrices. Row hashes now use a 64-bit rolling mix
+  instead of mixing every cell and mixing again, and a bounded sample
+  estimates cardinality so high-cardinality inputs allocate the final
+  table once while low-cardinality inputs keep the small grow-on-demand
+  table. On 10m rows, 2-column integer data frames improve about 2.5x
+  and mixed integer/double frames about 2.3-2.5x; 2m frames improve
+  1.5-1.8x. The scalar vector path was left unchanged: it is already
+  faster than
+  [`data.table::uniqueN()`](https://rdrr.io/pkg/data.table/man/duplicated.html)
+  and dedicated hash variants stayed under the 20% threshold.
+
+- Add `tools/benchmark-core.R`, a manual benchmark covering 2m/10m
+  elements, 5/20/100 switch values, integer/string/factor/NA inputs,
+  data frames, and 1/2/4 threads. It is not run in CI.
+
 ## kit 0.0.23 (2026-11-02)
 
 #### Bug Fixes

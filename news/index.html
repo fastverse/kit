@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">kit</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.0.23</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.0.24</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,6 +33,21 @@
       <small>Source: <a href="https://github.com/fastverse/kit/blob/master/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.0.24" id="kit-0024-development-version">kit 0.0.24 <small>(development version)</small>
+<a class="anchor" aria-label="anchor" href="#kit-0024-development-version"></a></h2>
+<div class="section level4">
+<h4 id="bug-fixes-0-0-24">Bug Fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-0-24"></a></h4>
+<ul><li><p>Fix <code><a href="../reference/vswitch.html">vswitch()</a></code>/<code><a href="../reference/vswitch.html">nswitch()</a></code> with <code>checkEnc = TRUE</code> when the first string is already UTF-8 but later elements are latin1 or <code>NA</code>: <code>enc2UTF8()</code> now checks every element and preserves <code>NA_STRING</code>, and value-major <code><a href="../reference/vswitch.html">nswitch()</a></code> compares each pair against its own converted value instead of the first one.</p></li>
+<li><p>Fix <code><a href="../reference/funique.html">funique()</a></code>/<code><a href="../reference/funique.html">fduplicated()</a></code>/<code><a href="../reference/funique.html">uniqLen()</a></code> hashing <code>-0</code> and differing <code>NaN</code> payloads as distinct doubles. Vector, matrix and data-frame paths now canonicalise doubles the same way <code>REQUAL</code> compares them, matching base R.</p></li>
+</ul></div>
+<div class="section level4">
+<h4 id="notes-0-0-24">Notes<a class="anchor" aria-label="anchor" href="#notes-0-0-24"></a></h4>
+<ul><li><p>Speed up <code><a href="../reference/vswitch.html">vswitch()</a></code> and <code><a href="../reference/vswitch.html">nswitch()</a></code> when there are many value/output pairs. For more than 8 pairs the implementation builds a value-to-last-pair hash map once and scans <code>x</code> in cache-sized blocks instead of comparing <code>x</code> against every value. Matching semantics are unchanged: integer/logical <code>NA</code> still matches <code>NA</code>, doubles/complex canonicalise <code>-0</code> and never match <code>NA</code>/<code>NaN</code>, strings compare <code>CHARSXP</code> identity, duplicate values keep the last pair, and threaded results stay deterministic. On 2m elements, 20 values are about 2-2.5x faster and 100 values 4.5-5.7x faster; the value-major path is kept for 8 or fewer pairs.</p></li>
+<li><p>Speed up <code><a href="../reference/funique.html">funique()</a></code>/<code><a href="../reference/funique.html">fduplicated()</a></code>/<code><a href="../reference/funique.html">uniqLen()</a></code> on data frames and matrices. Row hashes now use a 64-bit rolling mix instead of mixing every cell and mixing again, and a bounded sample estimates cardinality so high-cardinality inputs allocate the final table once while low-cardinality inputs keep the small grow-on-demand table. On 10m rows, 2-column integer data frames improve about 2.5x and mixed integer/double frames about 2.3-2.5x; 2m frames improve 1.5-1.8x. The scalar vector path was left unchanged: it is already faster than <code><a href="https://rdrr.io/pkg/data.table/man/duplicated.html" class="external-link">data.table::uniqueN()</a></code> and dedicated hash variants stayed under the 20% threshold.</p></li>
+<li><p>Add <code>tools/benchmark-core.R</code>, a manual benchmark covering 2m/10m elements, 5/20/100 switch values, integer/string/factor/NA inputs, data frames, and 1/2/4 threads. It is not run in CI.</p></li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.0.23" id="kit-0023-2026-11-02">kit 0.0.23 <small>(2026-11-02)</small>
 <a class="anchor" aria-label="anchor" href="#kit-0023-2026-11-02"></a></h2>
