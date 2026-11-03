@@ -26,6 +26,20 @@ expect_identical(nswitch(c(enc1, enc2), enc1, 1, default = 0), c(1, 1), info="en
 expect_identical(nswitch(c(enc1, enc2), enc2, 1, default = 0), c(1, 1), info="enc-009")
 expect_identical(nswitch(c(enc1, enc2), enc1, 1, default = 0, checkEnc = TRUE), c(1, 1), info="enc-010")
 
+# --- First element already UTF-8: later latin1 and NA must still convert (#107) ---
+x_enc <- c(enc2, enc1, NA_character_)
+v_enc <- c(enc1, enc2, NA_character_)
+expect_identical(vswitch(x_enc, v_enc, 1:3, checkEnc = TRUE), c(2L, 2L, 3L),
+                 info="enc-047")
+expect_identical(nswitch(x_enc, enc1, 1L, enc2, 2L, NA_character_, 3L,
+                         default = 0L, checkEnc = TRUE), c(2L, 2L, 3L),
+                 info="enc-048")
+# Each pair must compare against its own converted value, not the first one.
+expect_identical(nswitch(c(enc2, "b", NA_character_),
+                         enc1, 1L, "b", 2L, NA_character_, 3L,
+                         default = 0L, checkEnc = TRUE), c(1L, 2L, 3L),
+                 info="enc-049")
+
 # --- checkEnc argument validation ---
 expect_error(vswitch("a", "b", 1, checkEnc = NA), pattern = "Argument 'checkEnc' must be TRUE or FALSE and length 1.", fixed = TRUE, info="enc-011")
 expect_error(vswitch("a", "b", 1, checkEnc = 2), pattern = "Argument 'checkEnc' must be TRUE or FALSE and length 1.", fixed = TRUE, info="enc-012")

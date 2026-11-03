@@ -957,7 +957,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
     if (buniq) {
       if (pfromLast) {
         for (int i = n-1; i > -1; --i) {
-          tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+          tpv.u64 = kit_real_bits(px[i]);
           id = HASH(tpv.u[0] + tpv.u[1], K);
           while (h[id]) {
             if (REQUAL(px[h[id]-1], px[i])) {
@@ -973,7 +973,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
         }
       } else {
         for (int i = 0; i < n; ++i) {
-          tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+          tpv.u64 = kit_real_bits(px[i]);
           id = HASH(tpv.u[0] + tpv.u[1], K);
           while (h[id]) {
             if (REQUAL(px[h[id]-1], px[i])) {
@@ -1004,7 +1004,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
     } else {
       if (pfromLast) {
         for (int i = n-1; i > -1; --i) {
-          tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+          tpv.u64 = kit_real_bits(px[i]);
           id = HASH(tpv.u[0] + tpv.u[1], K);
           while (h[id]) {
             if (REQUAL(px[h[id]-1], px[i])) {
@@ -1021,7 +1021,7 @@ SEXP dupVecR(SEXP x, SEXP uniq, SEXP fromLast) {
         }
       } else {
         for (int i = 0; i < n; ++i) {
-          tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+          tpv.u64 = kit_real_bits(px[i]);
           id = HASH(tpv.u[0] + tpv.u[1], K);
           while (h[id]) {
             if (REQUAL(px[h[id]-1], px[i])) {
@@ -1339,7 +1339,7 @@ SEXP dupVecIndexOnlyR(SEXP x) {
     size_t id = 0;
     union uno tpv;
     for (int i = 0; i < n; ++i) {
-      tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+      tpv.u64 = kit_real_bits(px[i]);
       id = HASH(tpv.u[0] + tpv.u[1], K);
       while (h[id]) {
         if (REQUAL(px[h[id]-1], px[i])) {

@@ -721,3 +721,33 @@ local({
   dimnames(a) <- dimnames(b) <- NULL
   expect_identical(a, b, info = "funique-0107.presize-mat")
 })
+
+# issue #107: -0/0 and differing NaN payloads must hash equal because REQUAL
+# treats them equal. Vector, matrix and data-frame paths all share this rule.
+local({
+  mk_nan <- function(lo) {
+    bits <- as.raw(c(lo, 0, 0, 0, 0, 0, 0xf8, 0x7f))
+    if (.Platform$endian == "big") bits <- rev(bits)
+    readBin(bits, "double", n = 1L, size = 8L)
+  }
+  nans <- vapply(1:64, function(i) mk_nan(as.raw(i)), numeric(1))
+  for (x in list(c(0, -0), nans)) {
+    df <- data.frame(a = x)
+    m <- matrix(x, ncol = 1L)
+    expect_identical(funique(x), unique(x), info = "funique-0107.dbl-equal")
+    expect_identical(fduplicated(x), duplicated(x), info = "fduplicated-0107.dbl-equal")
+    expect_identical(uniqLen(x), 1L, info = "uniqLen-0107.dbl-equal")
+    expect_identical(nrow(funique(df)), nrow(unique(df)),
+                     info = "funique-0107.dbl-equal-df")
+    expect_identical(fduplicated(df), duplicated(df),
+                     info = "fduplicated-0107.dbl-equal-df")
+    expect_identical(uniqLen(df), 1L, info = "uniqLen-0107.dbl-equal-df")
+    expect_identical(nrow(funique(m)), nrow(unique(m)),
+                     info = "funique-0107.dbl-equal-mat")
+    expect_identical(fduplicated(m), as.vector(duplicated(m)),
+                     info = "fduplicated-0107.dbl-equal-mat")
+    expect_identical(uniqLen(m), 1L, info = "uniqLen-0107.dbl-equal-mat")
+  }
+  expect_identical(uniqLen(data.frame(a = c(0, -0), b = c("x", "x"))), 1L,
+                   info = "uniqLen-0107.dbl-equal-mixed-df")
+})

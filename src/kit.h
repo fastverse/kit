@@ -86,6 +86,18 @@ static inline size_t kit_hash_u64(uint64_t key, int K) {
 
 union uno { double d; unsigned int u[2]; uint64_t u64; };
 
+/* Canonical bits for hashing a double the way REQUAL/CEQUAL compare it. */
+static inline uint64_t kit_real_bits(double x) {
+  union uno v;
+  v.d = x;
+  if (ISNAN(x)) {
+    v.d = R_IsNA(x) ? NA_REAL : R_NaN;
+  } else if (x == 0.0) {
+    v.u64 = 0; // -0 == 0
+  }
+  return v.u64;
+}
+
 /*
  * Growable duplicate tables. Each table stores 1-based input indices in an
  * open-addressed int array and grows at 75% load. Rehashing re-reads the
@@ -136,10 +148,8 @@ static inline size_t kit_hash_rows_real(const double *px, const R_xlen_t i,
                                         const R_xlen_t len_i, const R_xlen_t len_x,
                                         const int K) {
   uint64_t key = 0;
-  union uno tpv;
   for (R_xlen_t j = 0; j < len_x; ++j) {
-    tpv.d = px[i+j*len_i];
-    key = key * KIT_MIX64 + tpv.u64;
+    key = key * KIT_MIX64 + kit_real_bits(px[i+j*len_i]);
   }
   return kit_hash_u64(key, K);
 }
@@ -302,7 +312,7 @@ static inline int *kit_rehash_real(const double *restrict px, int *restrict h,
     const int e = h[s];
     if (e) {
       const int i = e - 1;
-      tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN : px[i]);
+      tpv.u64 = kit_real_bits(px[i]);
       size_t id = HASH(tpv.u[0] + tpv.u[1], K2);
       while (h2[id]) { id++; id %= M2; }
       h2[id] = e;

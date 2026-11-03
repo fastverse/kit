@@ -334,7 +334,7 @@ SEXP dupLenVecR(SEXP x) {
     size_t id = 0;
     union uno tpv;
     for (int i = 0; i < n; ++i) {
-      tpv.d = R_IsNA(px[i]) ? NA_REAL : (R_IsNaN(px[i]) ? R_NaN :px[i]);
+      tpv.u64 = kit_real_bits(px[i]);
       id = HASH(tpv.u[0] + tpv.u[1], K);
       while (h[id]) {
         if (REQUAL(px[h[id]-1], px[i])) {

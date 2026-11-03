@@ -62,6 +62,17 @@ x_e <- c(enc_lat, enc_utf, paste0("v", 1:8))
 expect_identical(vswitch(x_e, vals_e, c(1:8, 9L, 10L)),
                  c(10L, 10L, 1:8), info = "hash-vswitch-str-enc")
 
+# First element UTF-8: enc2UTF8() must still convert later latin1 and keep NA.
+vals_e10 <- c(paste0("v", 1:7), enc_utf, enc_lat, NA_character_)
+x_e10 <- c(enc_utf, enc_lat, NA_character_, "v1")
+pairs_e10 <- unlist(lapply(seq_along(vals_e10), function(i) list(vals_e10[i], i)),
+                    recursive = FALSE)
+expect_identical(vswitch(x_e10, vals_e10, seq_along(vals_e10)),
+                 c(9L, 9L, 10L, 1L), info = "hash-vswitch-str-enc-first-utf8")
+expect_identical(
+  do.call(nswitch, c(list(x_e10), pairs_e10, list(default = 0L))),
+  c(9L, 9L, 10L, 1L), info = "hash-nswitch-str-enc-first-utf8")
+
 # Doubles: -0 == 0, Inf matches, but NA/NaN never match.
 vals_d <- c(1:8, Inf, 0, NA_real_, NaN)
 outs_d <- c(101:108, 109L, 110L, 111L, 112L)

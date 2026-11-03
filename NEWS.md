@@ -1,5 +1,11 @@
 # kit 0.0.24 <small>(development version)</small>
 
+### Bug Fixes
+
+- Fix `vswitch()`/`nswitch()` with `checkEnc = TRUE` when the first string is already UTF-8 but later elements are latin1 or `NA`: `enc2UTF8()` now checks every element and preserves `NA_STRING`, and value-major `nswitch()` compares each pair against its own converted value instead of the first one.
+
+- Fix `funique()`/`fduplicated()`/`uniqLen()` hashing `-0` and differing `NaN` payloads as distinct doubles. Vector, matrix and data-frame paths now canonicalise doubles the same way `REQUAL` compares them, matching base R.
+
 ### Notes
 
 - Speed up `vswitch()` and `nswitch()` when there are many value/output pairs. For more than 8 pairs the implementation builds a value-to-last-pair hash map once and scans `x` in cache-sized blocks instead of comparing `x` against every value. Matching semantics are unchanged: integer/logical `NA` still matches `NA`, doubles/complex canonicalise `-0` and never match `NA`/`NaN`, strings compare `CHARSXP` identity, duplicate values keep the last pair, and threaded results stay deterministic. On 2m elements, 20 values are about 2-2.5x faster and 100 values 4.5-5.7x faster; the value-major path is kept for 8 or fewer pairs.
